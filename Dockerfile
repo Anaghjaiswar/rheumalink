@@ -1,5 +1,5 @@
-FROM python:3.13-alpine3.19
-LABEL maintainer="londonappdeveloper.com"
+FROM python:3.12-slim-bookworm
+LABEL maintainer="rheumalink-dev"
 
 
 ENV PYTHONUNBUFFERED=1
@@ -13,27 +13,27 @@ COPY ./requirements.txt /requirements.txt
 
 
 # Install linux packages, install python dependencies, then remove build dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
-    libstdc++ \
-    su-exec \
-    && apk add --no-cache --virtual .build-deps build-base postgresql-dev musl-dev linux-headers g++ \
+    libpq-dev \
+    build-essential \
+    libstdc++6 \
+    gosu \
     && /py/bin/pip install --no-cache-dir -r /requirements.txt \
-    && apk del .build-deps
+    && rm -rf /var/lib/apt/lists/*
 
 # copy application code and scripts
 COPY ./core /core
 COPY ./scripts /scripts
 
 # Create non-root user and required directories
-RUN adduser --disabled-password app \
-    && mkdir -p /vol/web/static /vol/web/media/pdf \
-    && chown -R app:app /vol \
-    && chmod -R 755 /vol \
-    && chmod -R +x /scripts \
-    && chmod +x scripts/entrypoint.sh \
-    && chmod +x scripts/run.sh \
-    && chown -R app:app /core/logs \
+# Debian style user creation and permission setup
+RUN adduser --disabled-password --no-create-home app \
+    && mkdir -p /vol/web/static /vol/web/media/pdf /core/logs \
+    && chown -R app:app /vol /core/logs \
+    && chmod -R 755 /vol /scripts \
+    && chmod +x /scripts/entrypoint.sh \
+    && chmod +x /scripts/run.sh \
     && chmod 2775 /core/logs
 
 # set work directory

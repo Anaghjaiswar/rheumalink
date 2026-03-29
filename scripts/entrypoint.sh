@@ -10,6 +10,6 @@ chown -R app:app /vol/web
 
 
 # wait for the database to be ready
-python manage.py wait_for_db
+/py/bin/python manage.py wait_for_db
 
-exec su-exec app "$@"
+exec gosu app "$@"
