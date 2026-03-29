@@ -75,6 +75,11 @@ class Vitals(models.Model):
     def __str__(self):
         return f"Vitals for {self.patient.get_full_name()} on {self.appointment.appointment_date}"
 
+    class Meta:
+        verbose_name = "Vitals"
+        verbose_name_plural = "Vitals"
+
+
 
 def lab_report_upload_path(instance, filename):
     # NOTE:Files will be saved to: media/lab_reports/YYYY/MM/
@@ -260,6 +265,10 @@ class jointspain(models.Model):
 
     def __str__(self):
         return "Joint Colors"
+
+    class Meta:
+        verbose_name = "Joint Chart"
+        verbose_name_plural = "Joint Charts"
     
 
 
@@ -406,4 +415,9 @@ class RumatDiagnosis(models.Model):
 
     #==============================================================================================================#
     description_t =  models.CharField(max_length=1028, verbose_name="Description_total",null=True,blank=True)
+    
+    class Meta:
+        verbose_name = "RumatDiagnosis"
+        verbose_name_plural = "RumatDiagnosis"
+
     

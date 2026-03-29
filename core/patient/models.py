@@ -1,9 +1,6 @@
 from datetime import date
-
 from django.db import models
 
-
-# Create your models here.
 class PatientProfile(models.Model):
     SEX_CHOICES = [
         ('M', 'Male'),
@@ -74,8 +71,6 @@ class Comorbidity(models.Model):
 
     def __str__(self):
         return self.name
-    
-
 
 
 class PatientMedicalInfo(models.Model):
@@ -101,8 +96,34 @@ class PatientMedicalInfo(models.Model):
     def __str__(self):
         return f"Medical Information for {self.patient.get_full_name()} | Blood Group: {self.blood_group}"
     
+class PatientDiagnosis(models.Model):
+    """
+    The 'Book' of diagnosis history for a patient.
+    Every save is a new page in the timeline.
+    """
+    from treatment.models import Consultation, jointspain, RumatDiagnosis
+    STATE_CHOICES = [
+        ('Active', 'Active'),
+        ('Remission', 'Remission'),
+        ('Stable', 'Stable'),
+        ('Worsening', 'Worsening'),
+    ]
 
-
-
+    patient_link = models.ForeignKey(PatientProfile, on_delete=models.CASCADE, related_name="diagnosis_history")
+    consultation_link = models.ForeignKey(Consultation, on_delete=models.CASCADE, related_name="diagnosis_records")
+    joints_record = models.ForeignKey(jointspain, on_delete=models.SET_NULL, null=True, blank=True)
+    rumat_diagnosis = models.ForeignKey(RumatDiagnosis, on_delete=models.SET_NULL, null=True, blank=True)
     
+    disease_name = models.CharField(max_length=255, help_text="e.g., Rheumatoid Arthritis, SLE")
+    state = models.CharField(max_length=50, choices=STATE_CHOICES, default='Active')
+    version_note = models.TextField(blank=True, null=True, help_text="Doctor's notes for this specific version of diagnosis")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Patient Diagnosis"
+        verbose_name_plural = "Patient Diagnosis History"
+
+    def __str__(self):
+        return f"{self.disease_name} - {self.patient_link} ({self.state})"
