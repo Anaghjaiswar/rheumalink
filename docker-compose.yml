@@ -108,6 +108,18 @@ services:
       - redis
       - core
 
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: always
+    cpus: 4.0
+    mem_limit: 8g
+
+
 volumes:
   db_data:
   static_data:
+  ollama_data:
