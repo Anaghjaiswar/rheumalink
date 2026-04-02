@@ -113,7 +113,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - D:/ollama_models:/root/.ollama 
     restart: always
     cpus: 4.0
     mem_limit: 8g
