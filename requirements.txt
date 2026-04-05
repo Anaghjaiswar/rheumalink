@@ -12,7 +12,9 @@ django-celery-beat>=2.5.0
 whitenoise>=6.6.0
 pillow
 pgvector>=0.2.4
-langchain>=0.1.0
-langchain-community>=0.0.10
-sentence-transformers>=2.2.2
-google-generativeai>=0.3.0
+requests
+pandas
+
+pymupdf>=1.23.21
+paddlepaddle
+paddleocr

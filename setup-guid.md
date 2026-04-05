@@ -7,5 +7,3 @@
 7. cd ..
 8. docker compose build -d
 9. docker compose up -d
-10. docker compose exec ollama ollama pull llama3
-11. docker compose exec ollama ollama pull llama3.2-vision
