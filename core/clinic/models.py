@@ -20,7 +20,7 @@ class ClinicSettings(models.Model):
     contact_email = models.EmailField(help_text="Contact email for the clinic", verbose_name="Contact Email")
     contact_number = models.CharField(max_length=20, help_text="Contact number for the clinic", verbose_name="Contact Number")
 
-    clinic_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, help_text="Unique ID for this clinic installation")
+    clinic_id = models.UUIDField(default=uuid.uuid4, editable=False,unique=True, help_text="Unique ID for this clinic installation")
     api_access_token = models.CharField(
         max_length=255, 
         help_text="The secret token provided for AI service", 
