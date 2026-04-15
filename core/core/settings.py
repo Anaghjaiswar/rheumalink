@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'django_celery_beat',
     'rest_framework',
     'clinic',
@@ -97,6 +98,23 @@ ASGI_APPLICATION = 'core.asgi.application'
 REDIS_HOST = os.environ.get('REDIS_HOST', 'redis')
 REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
+REDIS_AUTH = f":{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": f"redis://{REDIS_AUTH}{REDIS_HOST}:{REDIS_PORT}/1",
+    }
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [f"redis://{REDIS_AUTH}{REDIS_HOST}:{REDIS_PORT}/2"],
+        },
+    },
+}
 
 
 # celery settings 
