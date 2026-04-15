@@ -1,0 +1,337 @@
+{% extends 'base.html' %}
+{% block title %}Doctor Dashboard{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Doctor Selector</h2>
+  <form method="get" class="grid two">
+    <div>
+      {{ doctor_form.doctor.label_tag }}
+      {{ doctor_form.doctor }}
+    </div>
+    <div>
+      <label>&nbsp;</label>
+      <button type="submit">Load Queue</button>
+    </div>
+  </form>
+</section>
+
+<section class="stats" id="queue-stats">
+  <article class="stat"><span>Waiting</span><strong id="waiting-count">{{ waiting|length }}</strong></article>
+  <article class="stat"><span>Attending</span><strong id="attending-count">{{ attending|length }}</strong></article>
+  <article class="stat"><span>Attended</span><strong id="attended-count">{{ attended|length }}</strong></article>
+  <article class="stat"><span>Total Today</span><strong id="total-count">{{ appointments|length }}</strong></article>
+</section>
+
+<section class="grid two">
+  <article class="panel">
+    <h2>Attending Patients</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Token</th>
+          <th>Patient</th>
+          <th>Joint Chart</th>
+          <th>Status Update</th>
+        </tr>
+      </thead>
+      <tbody id="attending-table">
+        {% for item in attending %}
+          <tr>
+            <td>{{ item.token_number }}</td>
+            <td>{{ item.patient.get_full_name }}</td>
+            <td>
+              <a href="{% url 'joint-chart-page' item.id %}?doctor={{ request.GET.doctor }}">Make/View</a>
+            </td>
+            <td>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_status">
+                <input type="hidden" name="appointment_id" value="{{ item.id }}">
+                <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+                <select name="status">
+                  {% for k, v in item.STATUS_CHOICES %}
+                    <option value="{{ k }}" {% if item.status == k %}selected{% endif %}>{{ v }}</option>
+                  {% endfor %}
+                </select>
+                <select name="doctor">
+                  <option value="">Unassigned</option>
+                  {% for doc in doctor_form.fields.doctor.queryset %}
+                    <option value="{{ doc.id }}" {% if item.doctor_id == doc.id %}selected{% endif %}>{{ doc.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit">Apply</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">No patient currently in consultation.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+
+  <article class="panel">
+    <h2>Attended Patients</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Token</th>
+          <th>Patient</th>
+          <th>Joint Chart</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="attended-table">
+        {% for item in attended %}
+          <tr>
+            <td>{{ item.token_number }}</td>
+            <td>{{ item.patient.get_full_name }}</td>
+            <td>
+              <a href="{% url 'joint-chart-page' item.id %}?doctor={{ request.GET.doctor }}">View</a>
+            </td>
+            <td>{{ item.get_status_display }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">No attended patient yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </article>
+</section>
+
+<section class="grid two">
+  <article class="panel">
+    <h2>Consultation + Prescription</h2>
+    <form method="post" id="consultation-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_consultation">
+      <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+      <label for="appointment_id">Appointment</label>
+      <select name="appointment_id" id="appointment_id" required>
+        <option value="">Select appointment</option>
+        {% for item in appointments %}
+          <option value="{{ item.id }}">#{{ item.token_number }} - {{ item.patient.get_full_name }}</option>
+        {% endfor %}
+      </select>
+
+      {{ consult_form.as_p }}
+      {{ prescription_form.as_p }}
+
+      <div id="medicine-rows">
+        <div class="grid" style="grid-template-columns: 2fr 1fr 1fr 2fr; gap: 6px;">
+          <input type="text" class="med-search" placeholder="Medicine name">
+          <input type="text" name="dosage" placeholder="Dosage 1-0-1">
+          <input type="text" name="duration" placeholder="Duration">
+          <input type="text" name="instructions" placeholder="Instructions">
+          <input type="hidden" name="medicine">
+        </div>
+      </div>
+      <button class="alt" type="button" id="add-medicine-row">Add Medicine</button>
+
+      <label for="post_consult_status">Post Consultation Status</label>
+      <select name="post_consult_status" id="post_consult_status">
+        <option value="I">In</option>
+        <option value="A" selected>Attended</option>
+      </select>
+
+      <button type="submit">Save Consultation + Generate PDF</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>Diagnosis Book Page</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_diagnosis">
+      <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+
+      <label for="diagnosis_appointment">Appointment</label>
+      <select name="appointment_id" id="diagnosis_appointment" required>
+        <option value="">Select appointment</option>
+        {% for item in appointments %}
+          <option value="{{ item.id }}">#{{ item.token_number }} - {{ item.patient.get_full_name }}</option>
+        {% endfor %}
+      </select>
+
+      {{ diagnosis_form.as_p }}
+
+      <div class="panel" style="padding:10px; margin:8px 0; background:#f8fbf4;">
+        <h3 style="margin-bottom:8px;">Joint Chart Entry</h3>
+        <p style="margin:0 0 8px; font-size:0.85rem; color:var(--muted);">
+          Joint chart is managed on a separate page. Create or view before saving diagnosis.
+        </p>
+        <button type="button" id="open-joint-chart" class="alt">Open Joint Chart Page</button>
+      </div>
+
+      <label for="rumat_mode">Rheumat Diagnosis Fill Mode</label>
+      <select name="rumat_mode" id="rumat_mode">
+        <option value="manual">Manual by Doctor</option>
+        <option value="auto">AI Prefill from Lab Report</option>
+      </select>
+      <textarea name="rumat_manual_notes" placeholder="Doctor confirmation notes for final diagnosis"></textarea>
+
+      <div class="panel" style="padding:10px; margin-top:8px; background:#f8fbf4;">
+        <h3 style="margin-bottom:8px;">Fast DAS28 Score</h3>
+        <div class="grid two">
+          <button type="button" id="calculate-das28" class="alt">Calculate for Selected Appointment</button>
+          <div id="das28-output" style="border:1px solid var(--line); padding:8px; background:#fff;">-</div>
+        </div>
+      </div>
+
+      <button type="submit">Save Diagnosis Page</button>
+    </form>
+  </article>
+</section>
+
+<section class="panel">
+  <h2>Optional Medical Record by Doctor</h2>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_medical_info_doctor">
+    <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+    <label for="doctor_patient_id">Patient</label>
+    <select name="patient_id" id="doctor_patient_id" required>
+      <option value="">Select patient</option>
+      {% for patient in recent_patients %}
+        <option value="{{ patient.id }}">{{ patient.get_full_name }} | {{ patient.contact_no }}</option>
+      {% endfor %}
+    </select>
+    {{ medical_form.as_p }}
+    <button type="submit">Save Medical Record</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Lab Report Sync</h2>
+  <table>
+    <thead><tr><th>Report</th><th>Patient</th><th>Action</th></tr></thead>
+    <tbody>
+      {% for report in lab_reports %}
+        <tr>
+          <td>{{ report.report_name }}</td>
+          <td>{{ report.patient.get_full_name }}</td>
+          <td>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="sync_lab_report">
+              <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+              <input type="hidden" name="report_id" value="{{ report.id }}">
+              <button type="submit">Sync Now</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">No reports available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const doctorId = new URLSearchParams(window.location.search).get('doctor');
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsPath = doctorId ? ('/ws/doctor-queue/' + doctorId + '/') : '/ws/doctor-queue/';
+  const socketUrl = protocol + '://' + window.location.host + wsPath;
+
+  function refreshQueue() {
+    const query = doctorId ? ('?doctor=' + doctorId) : '';
+    fetch('/api/queue/' + query)
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        document.getElementById('waiting-count').textContent = data.counts.waiting;
+        document.getElementById('attending-count').textContent = data.counts.attending;
+        document.getElementById('attended-count').textContent = data.counts.attended;
+        document.getElementById('total-count').textContent = data.counts.total;
+      })
+      .catch(function () {});
+  }
+
+  function connect() {
+    const socket = new WebSocket(socketUrl);
+    socket.onmessage = refreshQueue;
+    socket.onclose = function () {
+      setTimeout(connect, 1200);
+    };
+  }
+  connect();
+
+  function bindAutosuggest(searchInput, hiddenInput) {
+    searchInput.addEventListener('input', function () {
+      const q = searchInput.value.trim();
+      if (q.length < 2) return;
+      fetch('/api/medicine-autosuggest/?q=' + encodeURIComponent(q))
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+          if (!data.results.length) return;
+          const first = data.results[0];
+          searchInput.value = first.medicine_name + (first.strength ? (' ' + first.strength) : '');
+          hiddenInput.value = first.id;
+        })
+        .catch(function () {});
+    });
+  }
+
+  function wireRows() {
+    document.querySelectorAll('#medicine-rows .grid').forEach(function (row) {
+      const search = row.querySelector('.med-search');
+      const hidden = row.querySelector('input[type="hidden"][name="medicine"]');
+      if (search && hidden) bindAutosuggest(search, hidden);
+    });
+  }
+
+  document.getElementById('open-joint-chart').addEventListener('click', function () {
+    const appointmentId = document.getElementById('diagnosis_appointment').value;
+    if (!appointmentId) {
+      alert('Select appointment first.');
+      return;
+    }
+    const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
+    window.location.href = '/doctor/joint-chart/' + appointmentId + '/' + doctorParam;
+  });
+
+  document.getElementById('calculate-das28').addEventListener('click', function () {
+    const appointmentId = document.getElementById('diagnosis_appointment').value;
+    const output = document.getElementById('das28-output');
+    if (!appointmentId) {
+      output.textContent = 'Select appointment first.';
+      return;
+    }
+
+    fetch('/api/das28/' + appointmentId + '/')
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (data.error) {
+          output.textContent = data.error;
+          return;
+        }
+        output.textContent = 'Score: ' + data.score + ' (' + data.type + ')';
+      })
+      .catch(function () {
+        output.textContent = 'Could not calculate score right now.';
+      });
+  });
+
+  document.getElementById('add-medicine-row').addEventListener('click', function () {
+    const container = document.getElementById('medicine-rows');
+    const row = document.createElement('div');
+    row.className = 'grid';
+    row.style.gridTemplateColumns = '2fr 1fr 1fr 2fr';
+    row.style.gap = '6px';
+    row.innerHTML = '' +
+      '<input type="text" class="med-search" placeholder="Medicine name">' +
+      '<input type="text" name="dosage" placeholder="Dosage 1-0-1">' +
+      '<input type="text" name="duration" placeholder="Duration">' +
+      '<input type="text" name="instructions" placeholder="Instructions">' +
+      '<input type="hidden" name="medicine">';
+    container.appendChild(row);
+    wireRows();
+  });
+
+  wireRows();
+})();
+</script>
+{% endblock %}

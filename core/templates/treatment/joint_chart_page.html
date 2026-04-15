@@ -1,0 +1,593 @@
+{% extends 'base.html' %}
+{% block title %}Joint Chart{% endblock %}
+
+{% block extra_head %}
+<style>
+  .chart-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .skeleton-canvas {
+    background: #f5f3ed;
+    border: 1px solid var(--line);
+    padding: 14px;
+    overflow-x: auto;
+  }
+
+  .skeleton-stage {
+    position: relative;
+    min-height: 900px;
+  }
+
+  .skeleton-svg {
+    display: block;
+    width: 100%;
+    min-width: 860px;
+    max-width: 980px;
+    margin: 0 auto;
+  }
+
+  .skeleton-bone {
+    fill: none;
+    stroke: #2a2a2a;
+    stroke-width: 2.5;
+  }
+
+  .skeleton-bone-thin {
+    fill: none;
+    stroke: #2a2a2a;
+    stroke-width: 1.8;
+  }
+
+  .skeleton-bone-fine {
+    fill: none;
+    stroke: #2a2a2a;
+    stroke-width: 1.5;
+  }
+
+  .skeleton-side-label {
+    font-size: 120px;
+    font-weight: 900;
+    fill: #e5e2d8;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .joint-text-label {
+    fill: #5f6b76;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    user-select: none;
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: #f5f3ed;
+    stroke-width: 4px;
+    stroke-linejoin: round;
+  }
+
+  .joint-order-label {
+    fill: #4b5563;
+    font-size: 10px;
+    font-weight: 700;
+    user-select: none;
+    pointer-events: none;
+    paint-order: stroke;
+    stroke: #f5f3ed;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .legend-box {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 3;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+    padding: 14px;
+    width: min(100%, 240px);
+  }
+
+  .legend-title {
+    margin: 0 0 10px;
+    color: #1f2937;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .legend-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #374151;
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  .dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  }
+
+  .legend-click {
+    color: #9ca3af;
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+
+  .joint-marker {
+    transition: fill 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
+    pointer-events: none;
+  }
+
+  .joint-hit {
+    fill: transparent;
+    stroke: transparent;
+    cursor: pointer;
+    transition: fill 0.2s ease, stroke 0.2s ease;
+  }
+
+  .joint-hit:hover,
+  .joint-hit:focus-visible {
+    fill: rgba(148, 163, 184, 0.16);
+    stroke: #9ca3af;
+    stroke-width: 2;
+    outline: none;
+  }
+
+  .side-card {
+    position: sticky;
+    top: 14px;
+  }
+
+  .score-box {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .score-tile {
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .score-tile strong {
+    display: block;
+    font-size: 1.25rem;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 1080px) {
+    .chart-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .legend-box {
+      position: static;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+
+    .skeleton-stage {
+      min-height: auto;
+    }
+
+    .side-card {
+      position: static;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h2>Joint Assessment Chart</h2>
+  <p style="margin:0; color:var(--muted); font-size:0.9rem;">
+    Patient: {{ patient.get_full_name }} | Appointment Token: {{ appointment.token_number }}
+  </p>
+  {% if latest_chart %}
+    <p style="margin:6px 0 0; color:var(--muted); font-size:0.85rem;">Latest chart loaded from {{ latest_chart.date_of_assessment }}</p>
+  {% endif %}
+</section>
+
+<form method="post" id="joint-chart-form">
+  {% csrf_token %}
+  <section class="chart-shell">
+    <article class="panel skeleton-canvas">
+      <div style="margin-bottom:10px;">
+        <h3 style="margin:0;">Interactive Joint Skeleton</h3>
+        <p style="margin:4px 0 0; color:var(--muted); font-size:0.84rem;">
+          Exact Figma-style skeleton chart. Click a joint area to cycle through swelling and tenderness states.
+        </p>
+      </div>
+
+      <div class="skeleton-stage">
+        <div class="legend-box">
+          <h4 class="legend-title">Condition Legend</h4>
+          <div class="legend-list">
+            <div class="legend-item"><span class="dot" style="background:#ef4444;"></span>Swollen <span class="legend-click">(1 Click)</span></div>
+            <div class="legend-item"><span class="dot" style="background:#3b82f6;"></span>Tender <span class="legend-click">(2 Clicks)</span></div>
+            <div class="legend-item"><span class="dot" style="background:#facc15;"></span>Both <span class="legend-click">(3 Clicks)</span></div>
+            <div class="legend-item"><span class="dot" style="background:#c4cdd5;"></span>No Pain <span class="legend-click">(4 Clicks)</span></div>
+          </div>
+        </div>
+
+        <svg viewBox="0 0 1000 950" class="skeleton-svg" aria-label="Joint skeleton chart">
+          <text x="120" y="500" text-anchor="middle" class="skeleton-side-label">L</text>
+          <text x="880" y="500" text-anchor="middle" class="skeleton-side-label">R</text>
+
+          <text x="438" y="166" text-anchor="end" class="joint-text-label">SC (L)</text>
+          <text x="562" y="166" class="joint-text-label">SC (R)</text>
+          <text x="398" y="154" text-anchor="end" class="joint-text-label">AC (L)</text>
+          <text x="602" y="154" class="joint-text-label">AC (R)</text>
+
+          <text x="294" y="188" text-anchor="end" class="joint-text-label">Shoulder</text>
+          <text x="706" y="188" class="joint-text-label">Shoulder</text>
+          <text x="324" y="322" text-anchor="end" class="joint-text-label">Elbow</text>
+          <text x="676" y="322" class="joint-text-label">Elbow</text>
+          <text x="294" y="422" text-anchor="end" class="joint-text-label">Wrist</text>
+          <text x="706" y="422" class="joint-text-label">Wrist</text>
+          <text x="148" y="498" text-anchor="middle" class="joint-text-label">MCP + PIP</text>
+          <text x="852" y="498" text-anchor="middle" class="joint-text-label">MCP + PIP</text>
+          <text x="438" y="632" text-anchor="end" class="joint-text-label">Knee</text>
+          <text x="562" y="632" class="joint-text-label">Knee</text>
+          <text x="432" y="820" text-anchor="end" class="joint-text-label">Ankle</text>
+          <text x="568" y="820" class="joint-text-label">Ankle</text>
+          <text x="364" y="898" text-anchor="end" class="joint-text-label">MTP</text>
+          <text x="636" y="898" class="joint-text-label">MTP</text>
+
+          <text x="711" y="546" class="joint-order-label">1</text>
+          <text x="784" y="562" class="joint-order-label">2</text>
+          <text x="784" y="532" class="joint-order-label">3</text>
+          <text x="786" y="498" class="joint-order-label">4</text>
+          <text x="760" y="470" class="joint-order-label">5</text>
+
+          <text x="289" y="546" text-anchor="end" class="joint-order-label">1</text>
+          <text x="216" y="562" text-anchor="end" class="joint-order-label">2</text>
+          <text x="216" y="532" text-anchor="end" class="joint-order-label">3</text>
+          <text x="214" y="498" text-anchor="end" class="joint-order-label">4</text>
+          <text x="240" y="470" text-anchor="end" class="joint-order-label">5</text>
+
+          <text x="655" y="818" class="joint-order-label">1</text>
+          <text x="660" y="842" class="joint-order-label">2</text>
+          <text x="650" y="864" class="joint-order-label">3</text>
+          <text x="635" y="884" class="joint-order-label">4</text>
+          <text x="614" y="905" class="joint-order-label">5</text>
+
+          <text x="345" y="818" text-anchor="end" class="joint-order-label">1</text>
+          <text x="340" y="842" text-anchor="end" class="joint-order-label">2</text>
+          <text x="350" y="864" text-anchor="end" class="joint-order-label">3</text>
+          <text x="365" y="884" text-anchor="end" class="joint-order-label">4</text>
+          <text x="386" y="905" text-anchor="end" class="joint-order-label">5</text>
+
+          <ellipse cx="500" cy="90" rx="55" ry="65" class="skeleton-bone"/>
+          <path d="M 445 120 Q 440 145 455 155 L 545 155 Q 560 145 555 120" class="skeleton-bone"/>
+          <line x1="500" y1="155" x2="500" y2="175" class="skeleton-bone"/>
+          <path d="M 500 180 Q 520 175 580 170" class="skeleton-bone"/>
+          <path d="M 500 180 Q 480 175 420 170" class="skeleton-bone"/>
+          <circle cx="620" cy="200" r="12" class="skeleton-bone"/>
+          <circle cx="380" cy="200" r="12" class="skeleton-bone"/>
+          <ellipse cx="500" cy="280" rx="90" ry="110" class="skeleton-bone"/>
+          <path d="M 410 250 Q 380 280 410 310" class="skeleton-bone-thin"/>
+          <path d="M 590 250 Q 620 280 590 310" class="skeleton-bone-thin"/>
+          <path d="M 420 230 Q 390 260 420 290" class="skeleton-bone-thin"/>
+          <path d="M 580 230 Q 610 260 580 290" class="skeleton-bone-thin"/>
+          <line x1="500" y1="175" x2="500" y2="460" class="skeleton-bone"/>
+          <ellipse cx="500" cy="480" rx="85" ry="40" class="skeleton-bone"/>
+          <path d="M 415 480 Q 415 510 440 520" class="skeleton-bone"/>
+          <path d="M 585 480 Q 585 510 560 520" class="skeleton-bone"/>
+
+          <line x1="620" y1="200" x2="650" y2="320" class="skeleton-bone"/>
+          <line x1="650" y1="320" x2="680" y2="430" class="skeleton-bone"/>
+          <line x1="680" y1="430" x2="700" y2="520" class="skeleton-bone-thin"/>
+          <line x1="680" y1="430" x2="738" y2="466" class="skeleton-bone-thin"/>
+          <line x1="680" y1="430" x2="760" y2="490" class="skeleton-bone-thin"/>
+          <line x1="680" y1="430" x2="760" y2="520" class="skeleton-bone-thin"/>
+          <line x1="680" y1="430" x2="760" y2="545" class="skeleton-bone-thin"/>
+          <line x1="700" y1="520" x2="730" y2="570" class="skeleton-bone-thin"/>
+          <line x1="730" y1="570" x2="760" y2="610" class="skeleton-bone-fine"/>
+          <line x1="738" y1="466" x2="778" y2="472" class="skeleton-bone-thin"/>
+          <line x1="778" y1="472" x2="810" y2="478" class="skeleton-bone-fine"/>
+          <line x1="760" y1="490" x2="810" y2="500" class="skeleton-bone-thin"/>
+          <line x1="810" y1="500" x2="850" y2="510" class="skeleton-bone-fine"/>
+          <line x1="760" y1="520" x2="805" y2="540" class="skeleton-bone-thin"/>
+          <line x1="805" y1="540" x2="840" y2="555" class="skeleton-bone-fine"/>
+          <line x1="760" y1="545" x2="805" y2="575" class="skeleton-bone-thin"/>
+          <line x1="805" y1="575" x2="835" y2="600" class="skeleton-bone-fine"/>
+
+          <line x1="380" y1="200" x2="350" y2="320" class="skeleton-bone"/>
+          <line x1="350" y1="320" x2="320" y2="430" class="skeleton-bone"/>
+          <line x1="320" y1="430" x2="300" y2="520" class="skeleton-bone-thin"/>
+          <line x1="320" y1="430" x2="262" y2="466" class="skeleton-bone-thin"/>
+          <line x1="320" y1="430" x2="240" y2="490" class="skeleton-bone-thin"/>
+          <line x1="320" y1="430" x2="240" y2="520" class="skeleton-bone-thin"/>
+          <line x1="320" y1="430" x2="240" y2="545" class="skeleton-bone-thin"/>
+          <line x1="300" y1="520" x2="270" y2="570" class="skeleton-bone-thin"/>
+          <line x1="270" y1="570" x2="240" y2="610" class="skeleton-bone-fine"/>
+          <line x1="262" y1="466" x2="222" y2="472" class="skeleton-bone-thin"/>
+          <line x1="222" y1="472" x2="190" y2="478" class="skeleton-bone-fine"/>
+          <line x1="240" y1="490" x2="190" y2="500" class="skeleton-bone-thin"/>
+          <line x1="190" y1="500" x2="150" y2="510" class="skeleton-bone-fine"/>
+          <line x1="240" y1="520" x2="195" y2="540" class="skeleton-bone-thin"/>
+          <line x1="195" y1="540" x2="160" y2="555" class="skeleton-bone-fine"/>
+          <line x1="240" y1="545" x2="195" y2="575" class="skeleton-bone-thin"/>
+          <line x1="195" y1="575" x2="165" y2="600" class="skeleton-bone-fine"/>
+
+          <line x1="540" y1="520" x2="540" y2="640" class="skeleton-bone"/>
+          <line x1="540" y1="640" x2="545" y2="820" class="skeleton-bone"/>
+          <path d="M 545 820 L 535 850 Q 550 870 585 890" class="skeleton-bone-thin"/>
+          <path d="M 545 820 Q 570 820 610 820" class="skeleton-bone-thin"/>
+          <line x1="545" y1="820" x2="610" y2="820" class="skeleton-bone-thin"/>
+          <line x1="540" y1="835" x2="615" y2="840" class="skeleton-bone-thin"/>
+          <line x1="538" y1="850" x2="610" y2="860" class="skeleton-bone-thin"/>
+          <line x1="538" y1="865" x2="600" y2="875" class="skeleton-bone-thin"/>
+          <line x1="542" y1="878" x2="585" y2="890" class="skeleton-bone-thin"/>
+          <line x1="610" y1="820" x2="650" y2="820" class="skeleton-bone-fine"/>
+          <line x1="615" y1="840" x2="655" y2="845" class="skeleton-bone-fine"/>
+          <line x1="610" y1="860" x2="645" y2="865" class="skeleton-bone-fine"/>
+          <line x1="600" y1="875" x2="630" y2="885" class="skeleton-bone-fine"/>
+          <line x1="585" y1="890" x2="610" y2="905" class="skeleton-bone-fine"/>
+
+          <line x1="460" y1="520" x2="460" y2="640" class="skeleton-bone"/>
+          <line x1="460" y1="640" x2="455" y2="820" class="skeleton-bone"/>
+          <path d="M 455 820 L 465 850 Q 450 870 415 890" class="skeleton-bone-thin"/>
+          <path d="M 455 820 Q 430 820 390 820" class="skeleton-bone-thin"/>
+          <line x1="455" y1="820" x2="390" y2="820" class="skeleton-bone-thin"/>
+          <line x1="460" y1="835" x2="385" y2="840" class="skeleton-bone-thin"/>
+          <line x1="462" y1="850" x2="390" y2="860" class="skeleton-bone-thin"/>
+          <line x1="462" y1="865" x2="400" y2="875" class="skeleton-bone-thin"/>
+          <line x1="458" y1="878" x2="415" y2="890" class="skeleton-bone-thin"/>
+          <line x1="390" y1="820" x2="350" y2="820" class="skeleton-bone-fine"/>
+          <line x1="385" y1="840" x2="345" y2="845" class="skeleton-bone-fine"/>
+          <line x1="390" y1="860" x2="355" y2="865" class="skeleton-bone-fine"/>
+          <line x1="400" y1="875" x2="370" y2="885" class="skeleton-bone-fine"/>
+          <line x1="415" y1="890" x2="390" y2="905" class="skeleton-bone-fine"/>
+
+          <g class="joint-group" data-field="sternoclavicularright">
+            <circle class="joint-marker" cx="520" cy="180" r="10" />
+            <circle class="joint-hit" cx="520" cy="180" r="18" tabindex="0" role="button" aria-label="sternoclavicular right"></circle>
+          </g>
+          <g class="joint-group" data-field="sternoclavicularleft">
+            <circle class="joint-marker" cx="480" cy="180" r="10" />
+            <circle class="joint-hit" cx="480" cy="180" r="18" tabindex="0" role="button" aria-label="sternoclavicular left"></circle>
+          </g>
+          <g class="joint-group" data-field="acromioclavicularright">
+            <circle class="joint-marker" cx="580" cy="170" r="10" />
+            <circle class="joint-hit" cx="580" cy="170" r="18" tabindex="0" role="button" aria-label="acromioclavicular right"></circle>
+          </g>
+          <g class="joint-group" data-field="acromioclavicularleft">
+            <circle class="joint-marker" cx="420" cy="170" r="10" />
+            <circle class="joint-hit" cx="420" cy="170" r="18" tabindex="0" role="button" aria-label="acromioclavicular left"></circle>
+          </g>
+          <g class="joint-group" data-field="shoulderright">
+            <circle class="joint-marker" cx="620" cy="200" r="14" />
+            <circle class="joint-hit" cx="620" cy="200" r="24" tabindex="0" role="button" aria-label="shoulder right"></circle>
+          </g>
+          <g class="joint-group" data-field="shoulderleft">
+            <circle class="joint-marker" cx="380" cy="200" r="14" />
+            <circle class="joint-hit" cx="380" cy="200" r="24" tabindex="0" role="button" aria-label="shoulder left"></circle>
+          </g>
+          <g class="joint-group" data-field="elbowright">
+            <circle class="joint-marker" cx="650" cy="320" r="10" />
+            <circle class="joint-hit" cx="650" cy="320" r="18" tabindex="0" role="button" aria-label="elbow right"></circle>
+          </g>
+          <g class="joint-group" data-field="elbowleft">
+            <circle class="joint-marker" cx="350" cy="320" r="10" />
+            <circle class="joint-hit" cx="350" cy="320" r="18" tabindex="0" role="button" aria-label="elbow left"></circle>
+          </g>
+          <g class="joint-group" data-field="wristright">
+            <circle class="joint-marker" cx="680" cy="430" r="10" />
+            <circle class="joint-hit" cx="680" cy="430" r="18" tabindex="0" role="button" aria-label="wrist right"></circle>
+          </g>
+          <g class="joint-group" data-field="wristleft">
+            <circle class="joint-marker" cx="320" cy="430" r="10" />
+            <circle class="joint-hit" cx="320" cy="430" r="18" tabindex="0" role="button" aria-label="wrist left"></circle>
+          </g>
+          <g class="joint-group" data-field="kneeright">
+            <circle class="joint-marker" cx="540" cy="640" r="14" />
+            <circle class="joint-hit" cx="540" cy="640" r="24" tabindex="0" role="button" aria-label="knee right"></circle>
+          </g>
+          <g class="joint-group" data-field="kneeleft">
+            <circle class="joint-marker" cx="460" cy="640" r="14" />
+            <circle class="joint-hit" cx="460" cy="640" r="24" tabindex="0" role="button" aria-label="knee left"></circle>
+          </g>
+          <g class="joint-group" data-field="ankleright">
+            <circle class="joint-marker" cx="545" cy="820" r="10" />
+            <circle class="joint-hit" cx="545" cy="820" r="18" tabindex="0" role="button" aria-label="ankle right"></circle>
+          </g>
+          <g class="joint-group" data-field="ankleleft">
+            <circle class="joint-marker" cx="455" cy="820" r="10" />
+            <circle class="joint-hit" cx="455" cy="820" r="18" tabindex="0" role="button" aria-label="ankle left"></circle>
+          </g>
+
+          <g class="joint-group" data-field="mcp1right"><circle class="joint-marker" cx="700" cy="520" r="7" /><circle class="joint-hit" cx="700" cy="520" r="12" tabindex="0" role="button" aria-label="mcp1 right"></circle></g>
+          <g class="joint-group" data-field="mcp2right"><circle class="joint-marker" cx="738" cy="466" r="7" /><circle class="joint-hit" cx="738" cy="466" r="14" tabindex="0" role="button" aria-label="mcp2 right"></circle></g>
+          <g class="joint-group" data-field="mcp3right"><circle class="joint-marker" cx="760" cy="490" r="7" /><circle class="joint-hit" cx="760" cy="490" r="14" tabindex="0" role="button" aria-label="mcp3 right"></circle></g>
+          <g class="joint-group" data-field="mcp4right"><circle class="joint-marker" cx="760" cy="520" r="7" /><circle class="joint-hit" cx="760" cy="520" r="14" tabindex="0" role="button" aria-label="mcp4 right"></circle></g>
+          <g class="joint-group" data-field="mcp5right"><circle class="joint-marker" cx="760" cy="545" r="7" /><circle class="joint-hit" cx="760" cy="545" r="14" tabindex="0" role="button" aria-label="mcp5 right"></circle></g>
+          <g class="joint-group" data-field="pip1right"><circle class="joint-marker" cx="730" cy="570" r="7" /><circle class="joint-hit" cx="730" cy="570" r="12" tabindex="0" role="button" aria-label="pip1 right"></circle></g>
+          <g class="joint-group" data-field="pip2right"><circle class="joint-marker" cx="778" cy="472" r="7" /><circle class="joint-hit" cx="778" cy="472" r="14" tabindex="0" role="button" aria-label="pip2 right"></circle></g>
+          <g class="joint-group" data-field="pip3right"><circle class="joint-marker" cx="810" cy="500" r="7" /><circle class="joint-hit" cx="810" cy="500" r="14" tabindex="0" role="button" aria-label="pip3 right"></circle></g>
+          <g class="joint-group" data-field="pip4right"><circle class="joint-marker" cx="805" cy="540" r="7" /><circle class="joint-hit" cx="805" cy="540" r="14" tabindex="0" role="button" aria-label="pip4 right"></circle></g>
+          <g class="joint-group" data-field="pip5right"><circle class="joint-marker" cx="805" cy="575" r="7" /><circle class="joint-hit" cx="805" cy="575" r="14" tabindex="0" role="button" aria-label="pip5 right"></circle></g>
+
+          <g class="joint-group" data-field="mcp1left"><circle class="joint-marker" cx="300" cy="520" r="7" /><circle class="joint-hit" cx="300" cy="520" r="12" tabindex="0" role="button" aria-label="mcp1 left"></circle></g>
+          <g class="joint-group" data-field="mcp2left"><circle class="joint-marker" cx="262" cy="466" r="7" /><circle class="joint-hit" cx="262" cy="466" r="14" tabindex="0" role="button" aria-label="mcp2 left"></circle></g>
+          <g class="joint-group" data-field="mcp3left"><circle class="joint-marker" cx="240" cy="490" r="7" /><circle class="joint-hit" cx="240" cy="490" r="14" tabindex="0" role="button" aria-label="mcp3 left"></circle></g>
+          <g class="joint-group" data-field="mcp4left"><circle class="joint-marker" cx="240" cy="520" r="7" /><circle class="joint-hit" cx="240" cy="520" r="14" tabindex="0" role="button" aria-label="mcp4 left"></circle></g>
+          <g class="joint-group" data-field="mcp5left"><circle class="joint-marker" cx="240" cy="545" r="7" /><circle class="joint-hit" cx="240" cy="545" r="14" tabindex="0" role="button" aria-label="mcp5 left"></circle></g>
+          <g class="joint-group" data-field="pip1left"><circle class="joint-marker" cx="270" cy="570" r="7" /><circle class="joint-hit" cx="270" cy="570" r="12" tabindex="0" role="button" aria-label="pip1 left"></circle></g>
+          <g class="joint-group" data-field="pip2left"><circle class="joint-marker" cx="222" cy="472" r="7" /><circle class="joint-hit" cx="222" cy="472" r="14" tabindex="0" role="button" aria-label="pip2 left"></circle></g>
+          <g class="joint-group" data-field="pip3left"><circle class="joint-marker" cx="190" cy="500" r="7" /><circle class="joint-hit" cx="190" cy="500" r="14" tabindex="0" role="button" aria-label="pip3 left"></circle></g>
+          <g class="joint-group" data-field="pip4left"><circle class="joint-marker" cx="195" cy="540" r="7" /><circle class="joint-hit" cx="195" cy="540" r="14" tabindex="0" role="button" aria-label="pip4 left"></circle></g>
+          <g class="joint-group" data-field="pip5left"><circle class="joint-marker" cx="195" cy="575" r="7" /><circle class="joint-hit" cx="195" cy="575" r="14" tabindex="0" role="button" aria-label="pip5 left"></circle></g>
+
+          <g class="joint-group" data-field="mtp1right"><circle class="joint-marker" cx="610" cy="820" r="7" /><circle class="joint-hit" cx="610" cy="820" r="14" tabindex="0" role="button" aria-label="mtp1 right"></circle></g>
+          <g class="joint-group" data-field="mtp2right"><circle class="joint-marker" cx="615" cy="840" r="7" /><circle class="joint-hit" cx="615" cy="840" r="14" tabindex="0" role="button" aria-label="mtp2 right"></circle></g>
+          <g class="joint-group" data-field="mtp3right"><circle class="joint-marker" cx="610" cy="860" r="7" /><circle class="joint-hit" cx="610" cy="860" r="14" tabindex="0" role="button" aria-label="mtp3 right"></circle></g>
+          <g class="joint-group" data-field="mtp4right"><circle class="joint-marker" cx="600" cy="875" r="7" /><circle class="joint-hit" cx="600" cy="875" r="14" tabindex="0" role="button" aria-label="mtp4 right"></circle></g>
+          <g class="joint-group" data-field="mtp5right"><circle class="joint-marker" cx="585" cy="890" r="7" /><circle class="joint-hit" cx="585" cy="890" r="14" tabindex="0" role="button" aria-label="mtp5 right"></circle></g>
+
+          <g class="joint-group" data-field="mtp1left"><circle class="joint-marker" cx="390" cy="820" r="7" /><circle class="joint-hit" cx="390" cy="820" r="14" tabindex="0" role="button" aria-label="mtp1 left"></circle></g>
+          <g class="joint-group" data-field="mtp2left"><circle class="joint-marker" cx="385" cy="840" r="7" /><circle class="joint-hit" cx="385" cy="840" r="14" tabindex="0" role="button" aria-label="mtp2 left"></circle></g>
+          <g class="joint-group" data-field="mtp3left"><circle class="joint-marker" cx="390" cy="860" r="7" /><circle class="joint-hit" cx="390" cy="860" r="14" tabindex="0" role="button" aria-label="mtp3 left"></circle></g>
+          <g class="joint-group" data-field="mtp4left"><circle class="joint-marker" cx="400" cy="875" r="7" /><circle class="joint-hit" cx="400" cy="875" r="14" tabindex="0" role="button" aria-label="mtp4 left"></circle></g>
+          <g class="joint-group" data-field="mtp5left"><circle class="joint-marker" cx="415" cy="890" r="7" /><circle class="joint-hit" cx="415" cy="890" r="14" tabindex="0" role="button" aria-label="mtp5 left"></circle></g>
+        </svg>
+      </div>
+    </article>
+
+    <aside class="panel side-card">
+      <h3 style="margin-top:0;">Assessment Controls</h3>
+      <p style="margin:0 0 12px; color:var(--muted); font-size:0.84rem;">
+        The chart stores each joint as a compact state. Use the buttons below to review or reset quickly.
+      </p>
+
+      <div class="score-box">
+        <div class="score-tile"><span>No Pain</span><strong style="color:#7b8794;">0</strong></div>
+        <div class="score-tile"><span>Tender</span><strong style="color:#3b82f6;">1</strong></div>
+        <div class="score-tile"><span>Swollen</span><strong style="color:#ef4444;">2</strong></div>
+      </div>
+
+      <div style="margin-top:12px; border:1px solid var(--line); background:#fff; padding:10px;">
+        <h4 style="margin:0 0 8px; font-size:0.92rem;">Quick Notes</h4>
+        <ul style="margin:0; padding-left:18px; color:var(--muted); font-size:0.84rem; line-height:1.5;">
+          <li>Click a joint circle to cycle its state.</li>
+          <li>Use the recent chart list to see prior entries.</li>
+          <li>Save uses your existing joint record model fields.</li>
+        </ul>
+      </div>
+
+      <div id="hidden-inputs" style="display:none;">
+        {% for field in form %}
+          {{ field }}
+        {% endfor %}
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:12px; flex-wrap:wrap;">
+        <a class="alt" style="text-decoration:none; padding:8px 12px; border:1px solid var(--accent); color:var(--accent);" href="{% url 'doctor-dashboard' %}{% if doctor_id %}?doctor={{ doctor_id }}{% endif %}">Back to Dashboard</a>
+        <button type="submit">Save Joint Chart</button>
+      </div>
+
+      <div style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px;">
+        <h4 style="margin:0 0 8px; font-size:0.92rem;">Recent Joint Charts</h4>
+        <table>
+          <thead>
+            <tr><th>Recorded At</th><th>S</th><th>T</th></tr>
+          </thead>
+          <tbody>
+            {% for row in recent_charts %}
+              <tr>
+                <td>{{ row.recorded_at }}</td>
+                <td>{{ row.swollen }}</td>
+                <td>{{ row.tender }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3">No previous chart found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </aside>
+  </section>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const states = {
+    nopain: {
+      fill: '#c4cdd5',
+      stroke: '#4a5568',
+      filter: 'none',
+      next: 'red'
+    },
+    red: {
+      fill: '#ef4444',
+      stroke: '#ffffff',
+      filter: 'drop-shadow(0 0 4px rgba(239, 68, 68, 0.6))',
+      next: 'blue'
+    },
+    blue: {
+      fill: '#3b82f6',
+      stroke: '#ffffff',
+      filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.6))',
+      next: 'orange'
+    },
+    orange: {
+      fill: '#facc15',
+      stroke: '#ffffff',
+      filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.6))',
+      next: 'nopain'
+    }
+  };
+
+  function normalize(v) {
+    return states[v] ? v : 'nopain';
+  }
+
+  function paintNode(node, state) {
+    const safe = normalize(state);
+    node.setAttribute('data-val', safe);
+    node.setAttribute('fill', states[safe].fill);
+    node.style.stroke = states[safe].stroke;
+    node.style.strokeWidth = '1.5';
+    node.style.filter = states[safe].filter;
+  }
+
+  function cycleJoint(group, input) {
+    const marker = group.querySelector('.joint-marker');
+    if (!marker) return;
+    const current = normalize(marker.getAttribute('data-val'));
+    const next = states[current].next;
+    paintNode(marker, next);
+    if (input) input.value = next;
+  }
+
+  const groups = document.querySelectorAll('.joint-group');
+
+  groups.forEach(function (group) {
+    const field = group.getAttribute('data-field');
+    const marker = group.querySelector('.joint-marker');
+    const hit = group.querySelector('.joint-hit');
+    const input = field ? document.getElementById('id_' + field) : null;
+    if (!marker || !field) return;
+
+    const initial = input ? normalize(input.value) : 'nopain';
+    paintNode(marker, initial);
+
+    if (hit) {
+      hit.addEventListener('click', function () {
+        cycleJoint(group, input);
+      });
+
+      hit.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          cycleJoint(group, input);
+        }
+      });
+    }
+  });
+})();
+</script>
+{% endblock %}
