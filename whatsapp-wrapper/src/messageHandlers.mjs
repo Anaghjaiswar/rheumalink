@@ -46,10 +46,14 @@ export async function registerMessageHandlers(sock) {
         console.log('Received raw message object:', JSON.stringify(m, null, 2)); // ADDED: Log the entire message object
         if (!m.message) continue
         const key = m.key || {}
+        if (key.fromMe) {
+          // Prevent bot/self messages from re-entering webhook processing.
+          continue
+        }
         const from = key.remoteJid
         const senderjid = key.participant || from
         const sendernumber = senderjid ? senderjid.split('@')[0] : 'unknown'
-        let realPhoneJid = key.participantAlt || key.remoteJidAlt || senderJid
+        let realPhoneJid = key.participantAlt || key.remoteJidAlt || senderjid
 
         // detect group messages and cache group metadata
         if (from && from.endsWith('@g.us')) {

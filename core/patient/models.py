@@ -146,5 +146,49 @@ class PatientQueries(models.Model):
         verbose_name_plural = "Patient Queries"
 
 
+class PatientState(models.Model):
+    STATE_CHOICES = [
+        ("idle", "Idle"),
+        ("awaiting_query", "Awaiting Query"),
+    ]
+
+    SESSION_TIMEOUT_MINUTES = 15
+
+    patient = models.OneToOneField(
+        PatientProfile,
+        on_delete=models.CASCADE,
+        related_name="whatsapp_state",
+        help_text="Current WhatsApp conversation state for the patient",
+        verbose_name="Patient",
+    )
+    state = models.CharField(
+        max_length=20,
+        choices=STATE_CHOICES,
+        default="idle",
+        help_text="Current WhatsApp conversation state",
+        verbose_name="State",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    session_started_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Patient State"
+        verbose_name_plural = "Patient States"
+
+    def __str__(self):
+        return f"{self.patient.get_full_name()} - {self.state}"
+
+    def session_is_active(self, now=None):
+        from django.utils import timezone
+
+        if self.state != "awaiting_query" or not self.session_started_at:
+            return False
+
+        current_time = now or timezone.now()
+        elapsed_minutes = (current_time - self.session_started_at).total_seconds() / 60
+        return elapsed_minutes <= self.SESSION_TIMEOUT_MINUTES
+
+
 
 

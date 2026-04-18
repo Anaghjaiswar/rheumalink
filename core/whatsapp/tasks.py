@@ -1,17 +1,20 @@
-import re
 from logging import getLogger
 from typing import Optional
 
 import requests
 from celery import shared_task # type: ignore
+from django.utils import timezone
+from datetime import timedelta
 
 from .utils import extract_phone_number_from_user_id
+from patient.models import PatientState
 
 
 logger = getLogger(__name__)
 
 WHATSAPP_API_HOST = "http://whatsapp:3333"
 WHATSAPP_SEND_TEXT_URL = f"{WHATSAPP_API_HOST}/sendText"
+SESSION_TIMEOUT_MINUTES = 15
 
 
 
@@ -49,5 +52,17 @@ def send_whatsapp_message(
 
     logger.info("WhatsApp message sent successfully to %s", f"91{resolved_phone_number}@s.whatsapp.net")
     return {"ok": True, "jid": f"91{resolved_phone_number}@s.whatsapp.net", "status_code": response.status_code}
+
+
+@shared_task(name="cleanup_expired_whatsapp_sessions", queue="primary")
+def cleanup_expired_whatsapp_sessions():
+    cutoff = timezone.now() - timedelta(minutes=SESSION_TIMEOUT_MINUTES)
+    expired_sessions = PatientState.objects.filter(
+        state="awaiting_query",
+        session_started_at__lt=cutoff,
+    )
+    updated_count = expired_sessions.update(state="idle", session_started_at=None)
+    logger.info("Reset %s expired WhatsApp sessions to idle", updated_count)
+    return {"ok": True, "updated_count": updated_count}
     
 

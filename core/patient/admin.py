@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Comorbidity, FileRecord, PatientDiagnosis, PatientMedicalInfo, PatientProfile
+from .models import Comorbidity, FileRecord, PatientDiagnosis, PatientMedicalInfo, PatientProfile, PatientQueries, PatientState
 
 
 class FileRecordInline(admin.StackedInline):
@@ -89,3 +89,49 @@ class PatientDiagnosisAdmin(admin.ModelAdmin):
 		"rumat_diagnosis",
 	)
 	autocomplete_fields = ("patient_link", "consultation_link", "joints_record", "rumat_diagnosis")
+
+
+@admin.register(PatientQueries)
+class PatientQueriesAdmin(admin.ModelAdmin):
+	list_display = (
+		"id",
+		"patient",
+		"short_query",
+		"is_resolved",
+		"is_ai_response_approved",
+		"created_at",
+	)
+	list_filter = ("is_resolved", "is_ai_response_approved", "created_at")
+	search_fields = (
+		"patient__first_name",
+		"patient__last_name",
+		"patient__contact_no",
+		"query",
+		"ai_generated_response",
+	)
+	readonly_fields = ("created_at",)
+	date_hierarchy = "created_at"
+	list_select_related = ("patient",)
+	actions = ("mark_as_resolved", "approve_ai_response")
+
+	@admin.display(description="Query")
+	def short_query(self, obj):
+		max_length = 70
+		return obj.query if len(obj.query) <= max_length else f"{obj.query[:max_length]}..."
+
+	@admin.action(description="Mark selected queries as resolved")
+	def mark_as_resolved(self, request, queryset):
+		queryset.update(is_resolved=True)
+
+	@admin.action(description="Approve AI response for selected queries")
+	def approve_ai_response(self, request, queryset):
+		queryset.update(is_ai_response_approved=True)
+
+
+@admin.register(PatientState)
+class PatientStateAdmin(admin.ModelAdmin):
+	list_display = ("patient", "state", "session_started_at", "created_at", "updated_at")
+	list_filter = ("state", "created_at", "updated_at")
+	search_fields = ("patient__first_name", "patient__last_name", "patient__contact_no")
+	list_select_related = ("patient",)
+	readonly_fields = ("created_at", "updated_at", "session_started_at")

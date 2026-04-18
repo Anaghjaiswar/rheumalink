@@ -129,6 +129,12 @@ CELERY_TIMEZONE = "Asia/Kolkata"
 CELERY_RESULT_BACKEND = f"redis://:{REDIS_PASSWORD}@{CELERY_REDIS_HOST}:{CELERY_REDIS_PORT}/0"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 CELERY_TASK_DEFAULT_QUEUE = 'primary'
+CELERY_BEAT_SCHEDULE = {
+    "cleanup-expired-whatsapp-sessions": {
+        "task": "cleanup_expired_whatsapp_sessions",
+        "schedule": 60.0,
+    },
+}
 
 from .logging_config import master_logger  
 
