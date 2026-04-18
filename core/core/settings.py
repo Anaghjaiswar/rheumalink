@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-from celery.schedules import crontab
+from celery.schedules import crontab  # type:ignore
 load_dotenv()
 
 
@@ -24,7 +24,8 @@ INSTALLED_APPS = [
     'clinic',
     'doctor',
     'patient',
-    'treatment'
+    'treatment',
+    'whatsapp',
 ]
 
 MIDDLEWARE = [

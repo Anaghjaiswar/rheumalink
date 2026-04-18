@@ -127,3 +127,24 @@ class PatientDiagnosis(models.Model):
 
     def __str__(self):
         return f"{self.disease_name} - {self.patient_link} ({self.state})"
+    
+
+class PatientQueries(models.Model):
+    patient = models.ForeignKey(PatientProfile, on_delete=models.CASCADE, related_name="queries")
+    query = models.TextField(help_text="Patient's query or concern", verbose_name="Patient Query")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_resolved = models.BooleanField(default=False, help_text="Whether the query has been resolved or not", verbose_name="Is Resolved")
+    ai_generated_response = models.TextField(help_text="AI generated response to the patient's query", verbose_name="AI Generated Response", blank=True, null=True)
+    is_ai_response_approved = models.BooleanField(default=False, help_text="Whether the AI generated response has been approved by a doctor", verbose_name="Is AI Response Approved")
+
+    def __str__(self):
+        return f"Query by {self.patient.get_full_name()} on {self.created_at}"
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Patient Query"
+        verbose_name_plural = "Patient Queries"
+
+
+
+
