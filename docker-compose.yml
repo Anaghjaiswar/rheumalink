@@ -118,6 +118,36 @@ services:
     networks:
       - rheuma_network
 
+  whatsapp:
+    container_name: whatsapp_wrapper
+    build:
+      context: ./whatsapp-wrapper
+      dockerfile: Dockerfile
+    restart: always
+    env_file: .env
+    environment:
+      - TZ=Asia/Kolkata
+      - PGHOST=db
+      - PGUSER=${DB_USER}
+      - PGPASSWORD=${DB_PASS}
+      - PGDATABASE=${DB_NAME}
+      - PGPORT=5432
+      - PORT=3333
+      - POSTBACK_URL=${WHATSAPP_POSTBACK_URL}
+      - ENABLE_INCOMING_MESSAGES=${ENABLE_INCOMING_MESSAGES}
+    ports:
+      - "3333:3333"
+    volumes:
+      - ./whatsapp-wrapper/src:/usr/src/app/src
+    depends_on:
+      - db
+      - core
+    cpus: 0.5
+    mem_limit: 1g
+    mem_reservation: 512m
+    networks:
+      - rheuma_network
+
 
 networks:
   rheuma_network:
