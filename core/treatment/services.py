@@ -28,7 +28,7 @@ class RheumaAnalyticsService:
             
             # 3. Get Patient Global Health (GH) from Vitals or default to 50
             vitals = Vitals.objects.filter(appointment=appointment).first()
-            gh = float(vitals.pain_scale) if vitals and hasattr(vitals, 'pain_scale') else 50.0
+            gh = float(vitals.pain_scale) if vitals and getattr(vitals, 'pain_scale', None) is not None else 50.0
 
             # Calculation Logic
             tjc = counts['tender']

@@ -64,6 +64,7 @@ class VitalsForm(forms.ModelForm):
             "pulse_rate",
             "spo2",
             "temperature",
+            "pain_scale",
         ]
 
 

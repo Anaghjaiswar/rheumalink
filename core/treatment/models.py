@@ -71,6 +71,7 @@ class Vitals(models.Model):
     pulse_rate = models.PositiveIntegerField(help_text="Pulse rate of the patient", verbose_name="Pulse Rate (bpm)", blank=True, null=True)
     spo2 = models.PositiveIntegerField(help_text="Oxygen saturation level of the patient", verbose_name="SpO2 (%)", blank=True, null=True)
     temperature = models.DecimalField(max_digits=4, decimal_places=1, help_text="Body temperature of the patient in Celsius", verbose_name="Temperature (°C)", blank=True, null=True)
+    pain_scale = models.PositiveIntegerField(help_text="Patient pain scale from 0 to 100", verbose_name="Pain Scale (0-100)", blank=True, null=True)
 
     def __str__(self):
         return f"Vitals for {self.patient.get_full_name()} on {self.appointment.appointment_date}"
