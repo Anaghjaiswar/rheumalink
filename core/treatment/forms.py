@@ -88,7 +88,7 @@ class PatientMedicalInfoForm(forms.ModelForm):
         widgets = {
             "family_history": forms.Textarea(attrs={"rows": 2}),
             "known_allergies": forms.Textarea(attrs={"rows": 2}),
-            "comorbidities": forms.SelectMultiple(attrs={"size": 6}),
+            "comorbidities": forms.CheckboxSelectMultiple(),
         }
 
 

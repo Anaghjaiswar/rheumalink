@@ -558,3 +558,28 @@ def medicine_autosuggest(request):
 def das28_score(request, appointment_id):
 	data = RheumaAnalyticsService.calculate_das28_score(appointment_id)
 	return JsonResponse(data)
+
+
+def get_patient_medical_info(request, patient_id):
+	patient = get_object_or_404(PatientProfile, id=patient_id)
+	medical_info = PatientMedicalInfo.objects.filter(patient=patient).first()
+	if not medical_info:
+		return JsonResponse({
+			"exists": False,
+			"blood_group": "",
+			"family_history": "",
+			"known_allergies": "",
+			"smokes": False,
+			"alcoholic": False,
+			"comorbidities": [],
+		})
+
+	return JsonResponse({
+		"exists": True,
+		"blood_group": medical_info.blood_group,
+		"family_history": medical_info.family_history or "",
+		"known_allergies": medical_info.known_allergies or "",
+		"smokes": medical_info.smokes,
+		"alcoholic": medical_info.alcohololic,
+		"comorbidities": list(medical_info.comorbidities.values_list("id", flat=True)),
+	})

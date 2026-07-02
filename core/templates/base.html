@@ -215,6 +215,91 @@
         grid-template-columns: 1fr;
       }
     }
+
+    @keyframes micPulse {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(159, 45, 45, 0.4); }
+      70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(159, 45, 45, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(159, 45, 45, 0); }
+    }
+    .mic-pulsing {
+      animation: micPulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes borderPulse {
+      0% { border-color: var(--line); }
+      50% { border-color: var(--accent); }
+      100% { border-color: var(--line); }
+    }
+    .input-listening {
+      animation: borderPulse 1.2s infinite ease-in-out;
+      background-color: #fafdf6 !important;
+    }
+
+    /* Checkbox & Radio styling overrides */
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: auto !important;
+      margin-right: 8px;
+      cursor: pointer;
+      accent-color: var(--accent);
+    }
+
+    /* Grid layout for comorbidities checkboxes */
+    #id_comorbidities {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      background: #fafdf8;
+      list-style-type: none;
+      margin-top: 6px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+    }
+
+    #id_comorbidities li,
+    #id_comorbidities div {
+      margin: 0;
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      transition: background 0.2s ease;
+      border-radius: 4px;
+    }
+
+    #id_comorbidities li:hover,
+    #id_comorbidities div:hover {
+      background: var(--accent-soft);
+    }
+
+    #id_comorbidities label {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text);
+      width: 100%;
+      margin: 0;
+    }
+
+    /* Beautiful layout for boolean checkboxes */
+    form p:has(input[type="checkbox"]:not([name="comorbidities"])) {
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    form p:has(input[type="checkbox"]:not([name="comorbidities"])) label {
+      margin: 0;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: var(--text);
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -222,9 +307,20 @@
   <main class="wrapper">
     <header class="topbar">
       <h1>RheumaLink Clinic Workspace</h1>
-      <nav class="nav-links">
+      <nav class="nav-links" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
         <a href="{% url 'compounder-dashboard' %}">Compounder Dashboard</a>
         <a href="{% url 'doctor-dashboard' %}">Doctor Dashboard</a>
+        <div style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); padding: 6px 10px; background: #fbfdf8; font-size: 0.85rem; font-weight: 600;">
+          <span style="color: var(--muted);">🎙️ Voice Lang:</span>
+          <select id="voice-lang-select" style="width: auto; border: none; padding: 0 4px; background: transparent; font-weight: 700; cursor: pointer; font-size: 0.85rem; color: var(--text); outline: none;">
+            <option value="en-IN" selected>English (India) / Hinglish</option>
+            <option value="en-US">English (US)</option>
+            <option value="hi-IN">Hindi (हिन्दी)</option>
+            <option value="mr-IN">Marathi (મરાઠી)</option>
+            <option value="gu-IN">Gujarati (ગુજરાતી)</option>
+            <option value="ta-IN">Tamil (தமிழ்)</option>
+          </select>
+        </div>
       </nav>
     </header>
 
@@ -236,6 +332,135 @@
 
     {% block content %}{% endblock %}
   </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn('Web Speech API is not supported in this browser.');
+        return;
+      }
+
+      document.querySelectorAll('textarea, input[type="text"]').forEach(input => {
+        if (input.type === 'hidden' || input.readOnly || input.disabled) return;
+        if (input.name === 'csrfmiddlewaretoken') return;
+        if (input.closest('form')?.getAttribute('method')?.toLowerCase() === 'get') return;
+        if (input.classList.contains('no-mic') || input.classList.contains('med-search')) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.gap = '6px';
+        wrapper.style.width = '100%';
+        wrapper.style.position = 'relative';
+
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+        input.style.flex = '1';
+        input.style.width = 'auto';
+
+        const micBtn = document.createElement('button');
+        micBtn.type = 'button';
+        micBtn.innerHTML = '🎙️';
+        micBtn.style.width = '38px';
+        micBtn.style.height = '38px';
+        micBtn.style.padding = '0';
+        micBtn.style.margin = '0';
+        micBtn.style.flexShrink = '0';
+        micBtn.style.borderRadius = '4px';
+        micBtn.style.border = '1px solid var(--line)';
+        micBtn.style.background = '#fbfdf8';
+        micBtn.style.cursor = 'pointer';
+        micBtn.style.fontSize = '1.05rem';
+        micBtn.style.display = 'flex';
+        micBtn.style.alignItems = 'center';
+        micBtn.style.justifyContent = 'center';
+        micBtn.style.transition = 'all 0.2s ease';
+        micBtn.title = 'Click to dictate';
+
+        wrapper.appendChild(micBtn);
+
+        let recognition = null;
+        let isListening = false;
+
+        micBtn.addEventListener('click', () => {
+          if (isListening) {
+            recognition.stop();
+            return;
+          }
+
+          recognition = new SpeechRecognition();
+          const langSelect = document.getElementById('voice-lang-select');
+          recognition.lang = langSelect ? langSelect.value : 'en-IN';
+          recognition.continuous = false;
+          recognition.interimResults = true; // Enable real-time streaming feedback
+
+          const initialVal = input.value;
+          let finalTranscript = '';
+
+          recognition.onstart = () => {
+            isListening = true;
+            micBtn.style.background = 'var(--danger, #9f2d2d)';
+            micBtn.style.color = '#fff';
+            micBtn.style.border = '1px solid var(--danger)';
+            micBtn.classList.add('mic-pulsing');
+            input.classList.add('input-listening');
+          };
+
+          recognition.onend = () => {
+            isListening = false;
+            micBtn.style.background = '#fbfdf8';
+            micBtn.style.color = 'var(--text)';
+            micBtn.style.border = '1px solid var(--line)';
+            micBtn.classList.remove('mic-pulsing');
+            input.classList.remove('input-listening');
+          };
+
+          recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+              const transcript = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript += transcript;
+              } else {
+                interimTranscript += transcript;
+              }
+            }
+
+            const prefix = initialVal ? initialVal.trim() + ' ' : '';
+            if (interimTranscript) {
+              input.value = prefix + finalTranscript + interimTranscript;
+            } else {
+              input.value = prefix + finalTranscript;
+            }
+            
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          };
+
+          recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            if (event.error === 'not-allowed') {
+              alert('Voice Typing Error: Microphone access is blocked. Please click the site icon in the address bar and allow microphone permissions.');
+            } else if (event.error === 'network') {
+              alert('Voice Typing Error: Network error. Chrome requires an internet connection and a secure origin. Please access the dashboard using "http://localhost:8000" instead of "127.0.0.1" in your browser address bar.');
+            } else if (event.error === 'no-speech') {
+              console.warn('No speech detected.');
+            } else {
+              alert('Voice Typing Error: ' + event.error);
+            }
+            isListening = false;
+            micBtn.style.background = '#fbfdf8';
+            micBtn.style.color = 'var(--text)';
+            micBtn.style.border = '1px solid var(--line)';
+            micBtn.classList.remove('mic-pulsing');
+            input.classList.remove('input-listening');
+          };
+
+          recognition.start();
+        });
+      });
+    });
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -289,6 +289,7 @@ function selectPatientForDoctor(patientId) {
   const patientSelect = document.getElementById('doctor_patient_id');
   if (patientSelect) {
     patientSelect.value = patientId;
+    patientSelect.dispatchEvent(new Event('change'));
   }
   
   // Try to find the panel and scroll to it
@@ -301,6 +302,50 @@ function selectPatientForDoctor(patientId) {
     }, 1500);
   }
 }
+
+function loadPatientMedicalInfo(patientId, form) {
+  if (!patientId) {
+    if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = '';
+    if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = '';
+    if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = '';
+    if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = false;
+    if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = false;
+    form.querySelectorAll('input[name="comorbidities"]').forEach(cb => cb.checked = false);
+    if (form.querySelector('#id_custom_comorbidity')) form.querySelector('#id_custom_comorbidity').value = '';
+    return;
+  }
+
+  fetch(`/api/patient-medical-info/${patientId}/`)
+    .then(response => response.json())
+    .then(data => {
+      if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = data.blood_group || '';
+      if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = data.family_history || '';
+      if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = data.known_allergies || '';
+      if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = !!data.smokes;
+      if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = !!data.alcoholic;
+      
+      const comorbidities = data.comorbidities || [];
+      form.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
+        cb.checked = comorbidities.includes(parseInt(cb.value));
+      });
+      if (form.querySelector('#id_custom_comorbidity')) form.querySelector('#id_custom_comorbidity').value = '';
+    })
+    .catch(err => console.error('Error fetching patient medical info:', err));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const patientSelect = document.getElementById('doctor_patient_id');
+  const medicalForm = document.querySelector('form input[name="action"][value="save_medical_info_doctor"]')?.form;
+  if (patientSelect && medicalForm) {
+    patientSelect.addEventListener('change', () => {
+      loadPatientMedicalInfo(patientSelect.value, medicalForm);
+    });
+    // Trigger on load if a patient is pre-selected
+    if (patientSelect.value) {
+      loadPatientMedicalInfo(patientSelect.value, medicalForm);
+    }
+  }
+});
 
 (function () {
   const doctorId = new URLSearchParams(window.location.search).get('doctor');
