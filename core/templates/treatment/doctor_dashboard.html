@@ -78,11 +78,12 @@
           <th>Patient</th>
           <th>Joint Chart</th>
           <th>Status Update</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody id="attending-table">
         {% for item in attending %}
-          <tr>
+          <tr data-appointment-id="{{ item.id }}" data-patient-id="{{ item.patient.id }}" data-token-number="{{ item.token_number }}" data-patient-name="{{ item.patient.get_full_name }}">
             <td>{{ item.token_number }}</td>
             <td>{{ item.patient.get_full_name }}</td>
             <td>
@@ -108,9 +109,12 @@
                 <button type="submit">Apply</button>
               </form>
             </td>
+            <td>
+              <button type="button" class="alt" style="margin: 0; padding: 4px 8px; font-size: 0.85rem;" onclick="startPatientConsultation('{{ item.id }}', '{{ item.patient.id }}', '{{ item.token_number }}', '{{ item.patient.get_full_name }}')">🩺 Start</button>
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="4">No patient currently in consultation.</td></tr>
+          <tr><td colspan="5">No patient currently in consultation.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -125,24 +129,192 @@
           <th>Patient</th>
           <th>Joint Chart</th>
           <th>Status</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody id="attended-table">
         {% for item in attended %}
-          <tr>
+          <tr data-appointment-id="{{ item.id }}" data-patient-id="{{ item.patient.id }}" data-token-number="{{ item.token_number }}" data-patient-name="{{ item.patient.get_full_name }}">
             <td>{{ item.token_number }}</td>
             <td>{{ item.patient.get_full_name }}</td>
             <td>
               <a href="{% url 'joint-chart-page' item.id %}?doctor={{ request.GET.doctor }}">View</a>
             </td>
             <td>{{ item.get_status_display }}</td>
+            <td>
+              <button type="button" class="alt" style="margin: 0; padding: 4px 8px; font-size: 0.85rem;" onclick="startPatientConsultation('{{ item.id }}', '{{ item.patient.id }}', '{{ item.token_number }}', '{{ item.patient.get_full_name }}')">🩺 Select</button>
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="4">No attended patient yet.</td></tr>
+          <tr><td colspan="5">No attended patient yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </article>
+</section>
+
+<!-- Active Patient Vitals & Medical History Panel -->
+<section class="panel" id="active-patient-panel" style="display: none; margin-top: 20px; border: 2px solid var(--accent);">
+  <h2 id="active-patient-title" style="color: var(--accent); margin-bottom: 15px; text-transform: none;">🔬 Active Patient Clinical Information</h2>
+  
+  <div class="grid two">
+    <!-- Vitals Card -->
+    <div class="panel" style="border: 1px solid var(--line); background: #fafdf8; padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--line); padding-bottom: 6px;">
+        <h3 style="margin: 0; font-size: 1rem; color: var(--accent); text-transform: none;">📊 Patient Vitals</h3>
+        <button type="button" id="edit-vitals-btn" class="alt" style="width: auto; padding: 4px 10px; font-size: 0.85rem; margin: 0; display: none;">✏️ Edit</button>
+      </div>
+      
+      <!-- Vitals Info Summary -->
+      <div id="vitals-summary-view" style="display: none;">
+        <div class="grid two" style="gap: 10px; font-size: 0.95rem; margin-top: 0;">
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Weight</span>
+            <strong id="summary-weight">-</strong> kg
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Height</span>
+            <strong id="summary-height">-</strong> cm
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Blood Pressure</span>
+            <strong id="summary-bp">-</strong> mmHg
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Pulse Rate</span>
+            <strong id="summary-pulse">-</strong> bpm
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">SpO2 (Oxygen)</span>
+            <strong id="summary-spo2">-</strong> %
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Temperature</span>
+            <strong id="summary-temp">-</strong> °C
+          </div>
+        </div>
+        <div style="background: #fff; padding: 10px; border: 1px solid var(--line); margin-top: 10px;">
+          <span style="color: var(--muted); font-size: 0.8rem; display: block;">Pain Scale (0-100)</span>
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px;">
+            <div style="flex: 1; height: 10px; background: #e0e0e0; border-radius: 5px; overflow: hidden; position: relative;">
+              <div id="summary-pain-bar" style="height: 100%; width: 0%; background: var(--accent);"></div>
+            </div>
+            <strong id="summary-pain-val">-</strong>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Vitals Form (Hidden by default, shown when editing or missing) -->
+      <div id="vitals-form-view">
+        <form method="post" action="">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="capture_vitals">
+          <input type="hidden" name="doctor_id" value="{{ request.GET.doctor|default:'' }}">
+          <input type="hidden" name="appointment_id" class="active-appointment-id-field">
+          <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
+          
+          <div class="grid two" style="gap: 8px; margin-top: 0;">
+            <div>
+              <label for="id_vitals_weight">Weight (kg)</label>
+              <input type="number" step="0.1" name="weight" id="id_vitals_weight">
+            </div>
+            <div>
+              <label for="id_vitals_height">Height (cm)</label>
+              <input type="number" step="0.1" name="height" id="id_vitals_height">
+            </div>
+            <div>
+              <label for="id_vitals_bp_sys">Systolic BP</label>
+              <input type="number" name="bp_systolic" id="id_vitals_bp_sys">
+            </div>
+            <div>
+              <label for="id_vitals_bp_dia">Diastolic BP</label>
+              <input type="number" name="bp_diastolic" id="id_vitals_bp_dia">
+            </div>
+            <div>
+              <label for="id_vitals_pulse">Pulse Rate (bpm)</label>
+              <input type="number" name="pulse_rate" id="id_vitals_pulse">
+            </div>
+            <div>
+              <label for="id_vitals_spo2">SpO2 (%)</label>
+              <input type="number" name="spo2" id="id_vitals_spo2">
+            </div>
+            <div>
+              <label for="id_vitals_temp">Temperature (°C)</label>
+              <input type="number" step="0.1" name="temperature" id="id_vitals_temp">
+            </div>
+            <div>
+              <label for="id_vitals_pain">Pain Scale (0-100)</label>
+              <input type="number" name="pain_scale" id="id_vitals_pain">
+            </div>
+          </div>
+          
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button type="submit" style="width: auto;">Save Vitals</button>
+            <button type="button" id="cancel-vitals-btn" class="alt" style="width: auto; display: none;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Medical History Card -->
+    <div class="panel" style="border: 1px solid var(--line); background: #fafdf8; padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 2px solid var(--line); padding-bottom: 6px;">
+        <h3 style="margin: 0; font-size: 1rem; color: var(--accent); text-transform: none;">📋 Medical History</h3>
+        <button type="button" id="edit-medical-btn" class="alt" style="width: auto; padding: 4px 10px; font-size: 0.85rem; margin: 0; display: none;">✏️ Edit</button>
+      </div>
+      
+      <!-- Medical Summary View -->
+      <div id="medical-summary-view" style="display: none; font-size: 0.95rem;">
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line); flex: 1;">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Blood Group</span>
+            <strong id="summary-blood-group">-</strong>
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line); flex: 1;">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Smoking Habits</span>
+            <strong id="summary-smokes">-</strong>
+          </div>
+          <div style="background: #fff; padding: 8px; border: 1px solid var(--line); flex: 1;">
+            <span style="color: var(--muted); font-size: 0.8rem; display: block;">Alcohol Habits</span>
+            <strong id="summary-alcoholic">-</strong>
+          </div>
+        </div>
+        
+        <div style="background: #fff; padding: 8px; border: 1px solid var(--line); margin-bottom: 10px;">
+          <span style="color: var(--muted); font-size: 0.8rem; display: block; margin-bottom: 4px;">Comorbidities</span>
+          <div id="summary-comorbidities" style="display: flex; flex-wrap: wrap; gap: 6px;">-</div>
+        </div>
+        
+        <div style="background: #fff; padding: 8px; border: 1px solid var(--line); margin-bottom: 10px;">
+          <span style="color: var(--muted); font-size: 0.8rem; display: block;">Family Medical History</span>
+          <p id="summary-family-history" style="margin: 4px 0 0; font-weight: 500;">-</p>
+        </div>
+        
+        <div style="background: #fff; padding: 8px; border: 1px solid var(--line);">
+          <span style="color: var(--muted); font-size: 0.8rem; display: block;">Known Allergies</span>
+          <p id="summary-known-allergies" style="margin: 4px 0 0; font-weight: 500; color: var(--danger);">-</p>
+        </div>
+      </div>
+      
+      <!-- Medical Form (Hidden by default, shown when editing or missing) -->
+      <div id="medical-form-view">
+        <form method="post" action="">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_medical_info_doctor">
+          <input type="hidden" name="doctor_id" value="{{ request.GET.doctor|default:'' }}">
+          <input type="hidden" name="patient_id" id="doctor_patient_id" class="active-patient-id-field">
+          <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
+          
+          {{ medical_form.as_p }}
+          
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <button type="submit" style="width: auto;">Save Medical History</button>
+            <button type="button" id="cancel-medical-btn" class="alt" style="width: auto; display: none;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="grid two">
@@ -152,6 +324,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="save_consultation">
       <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+      <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
       <label for="appointment_id">Appointment</label>
       <select name="appointment_id" id="appointment_id" required>
         <option value="">Select appointment</option>
@@ -164,7 +337,7 @@
       {{ prescription_form.as_p }}
 
       <div id="medicine-rows">
-        <div class="grid" style="grid-template-columns: 2fr 1fr 1fr 2fr; gap: 6px;">
+        <div class="grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 6px;">
           <input type="text" class="med-search" placeholder="Medicine name">
           <input type="text" name="dosage" placeholder="Dosage 1-0-1">
           <input type="text" name="duration" placeholder="Duration">
@@ -190,6 +363,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="save_diagnosis">
       <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+      <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
 
       <label for="diagnosis_appointment">Appointment</label>
       <select name="appointment_id" id="diagnosis_appointment" required>
@@ -229,23 +403,7 @@
   </article>
 </section>
 
-<section class="panel">
-  <h2>Optional Medical Record by Doctor</h2>
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="save_medical_info_doctor">
-    <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
-    <label for="doctor_patient_id">Patient</label>
-    <select name="patient_id" id="doctor_patient_id" required>
-      <option value="">Select patient</option>
-      {% for patient in recent_patients %}
-        <option value="{{ patient.id }}">{{ patient.get_full_name }} | File: {{ patient.filerecord.internal_file_number }}{% if patient.filerecord.external_file_number %} (Ext: {{ patient.filerecord.external_file_number }}){% endif %} | {{ patient.contact_no }}</option>
-      {% endfor %}
-    </select>
-    {{ medical_form.as_p }}
-    <button type="submit">Save Medical Record</button>
-  </form>
-</section>
+<!-- Old Medical Record section replaced by new Active Patient Clinical Information panel -->
 
 <section class="panel">
   <h2>Lab Report Sync</h2>
@@ -285,64 +443,240 @@
 
 {% block extra_js %}
 <script>
-function selectPatientForDoctor(patientId) {
-  const patientSelect = document.getElementById('doctor_patient_id');
-  if (patientSelect) {
-    patientSelect.value = patientId;
-    patientSelect.dispatchEvent(new Event('change'));
+function startPatientConsultation(appointmentId, patientId, tokenNumber, patientName) {
+  const panel = document.getElementById('active-patient-panel');
+  if (panel) panel.style.display = 'block';
+  
+  const title = document.getElementById('active-patient-title');
+  if (title) title.innerHTML = `🔬 Active Patient: Token #${tokenNumber} - ${patientName}`;
+  
+  document.querySelectorAll('.active-appointment-id-field').forEach(input => input.value = appointmentId);
+  document.querySelectorAll('.active-patient-id-field').forEach(input => input.value = patientId);
+  
+  const apptSelect1 = document.getElementById('appointment_id');
+  if (apptSelect1) {
+    apptSelect1.value = appointmentId;
+    apptSelect1.dispatchEvent(new Event('change'));
+  }
+  const apptSelect2 = document.getElementById('diagnosis_appointment');
+  if (apptSelect2) {
+    apptSelect2.value = appointmentId;
+    apptSelect2.dispatchEvent(new Event('change'));
+  }
+  const patSelect = document.getElementById('doctor_patient_id');
+  if (patSelect) {
+    patSelect.value = patientId;
+    patSelect.dispatchEvent(new Event('change'));
   }
   
-  // Try to find the panel and scroll to it
-  const panel = document.getElementById('doctor_patient_id')?.closest('.panel');
-  if (panel) {
-    panel.scrollIntoView({ behavior: 'smooth' });
-    panel.style.outline = '2px solid #4caf50';
-    setTimeout(() => {
-      panel.style.outline = 'none';
-    }, 1500);
-  }
+  if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+  
+  fetchVitals(appointmentId);
+  fetchMedicalInfo(patientId);
 }
 
-function loadPatientMedicalInfo(patientId, form) {
-  if (!patientId) {
-    if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = '';
-    if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = '';
-    if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = '';
-    if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = false;
-    if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = false;
-    form.querySelectorAll('input[name="comorbidities"]').forEach(cb => cb.checked = false);
-    if (form.querySelector('#id_custom_comorbidity')) form.querySelector('#id_custom_comorbidity').value = '';
-    return;
-  }
-
-  fetch(`/api/patient-medical-info/${patientId}/`)
-    .then(response => response.json())
+function fetchVitals(appointmentId) {
+  const summaryView = document.getElementById('vitals-summary-view');
+  const formView = document.getElementById('vitals-form-view');
+  const editBtn = document.getElementById('edit-vitals-btn');
+  const cancelBtn = document.getElementById('cancel-vitals-btn');
+  
+  document.getElementById('summary-weight').textContent = '-';
+  document.getElementById('summary-height').textContent = '-';
+  document.getElementById('summary-bp').textContent = '-';
+  document.getElementById('summary-pulse').textContent = '-';
+  document.getElementById('summary-spo2').textContent = '-';
+  document.getElementById('summary-temp').textContent = '-';
+  document.getElementById('summary-pain-val').textContent = '-';
+  document.getElementById('summary-pain-bar').style.width = '0%';
+  
+  fetch(`/api/patient-vitals/${appointmentId}/`)
+    .then(resp => resp.json())
     .then(data => {
-      if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = data.blood_group || '';
-      if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = data.family_history || '';
-      if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = data.known_allergies || '';
-      if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = !!data.smokes;
-      if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = !!data.alcoholic;
-      
-      const comorbidities = data.comorbidities || [];
-      form.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
-        cb.checked = comorbidities.includes(parseInt(cb.value));
-      });
-      if (form.querySelector('#id_custom_comorbidity')) form.querySelector('#id_custom_comorbidity').value = '';
+      if (data.exists) {
+        document.getElementById('summary-weight').textContent = data.weight || '-';
+        document.getElementById('summary-height').textContent = data.height || '-';
+        
+        let bp = '-';
+        if (data.bp_systolic || data.bp_diastolic) {
+          bp = `${data.bp_systolic || '-'}/${data.bp_diastolic || '-'}`;
+        }
+        document.getElementById('summary-bp').textContent = bp;
+        document.getElementById('summary-pulse').textContent = data.pulse_rate || '-';
+        document.getElementById('summary-spo2').textContent = data.spo2 || '-';
+        document.getElementById('summary-temp').textContent = data.temperature || '-';
+        document.getElementById('summary-pain-val').textContent = data.pain_scale !== '' ? data.pain_scale : '-';
+        if (data.pain_scale !== '') {
+          document.getElementById('summary-pain-bar').style.width = `${data.pain_scale}%`;
+          const val = parseInt(data.pain_scale);
+          if (val > 70) {
+            document.getElementById('summary-pain-bar').style.backgroundColor = 'var(--danger)';
+          } else if (val > 30) {
+            document.getElementById('summary-pain-bar').style.backgroundColor = 'var(--warning)';
+          } else {
+            document.getElementById('summary-pain-bar').style.backgroundColor = 'var(--accent)';
+          }
+        }
+        
+        document.getElementById('id_vitals_weight').value = data.weight;
+        document.getElementById('id_vitals_height').value = data.height;
+        document.getElementById('id_vitals_bp_sys').value = data.bp_systolic;
+        document.getElementById('id_vitals_bp_dia').value = data.bp_diastolic;
+        document.getElementById('id_vitals_pulse').value = data.pulse_rate;
+        document.getElementById('id_vitals_spo2').value = data.spo2;
+        document.getElementById('id_vitals_temp').value = data.temperature;
+        document.getElementById('id_vitals_pain').value = data.pain_scale;
+        
+        summaryView.style.display = 'block';
+        formView.style.display = 'none';
+        editBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'none';
+      } else {
+        document.getElementById('id_vitals_weight').value = '';
+        document.getElementById('id_vitals_height').value = '';
+        document.getElementById('id_vitals_bp_sys').value = '';
+        document.getElementById('id_vitals_bp_dia').value = '';
+        document.getElementById('id_vitals_pulse').value = '';
+        document.getElementById('id_vitals_spo2').value = '';
+        document.getElementById('id_vitals_temp').value = '';
+        document.getElementById('id_vitals_pain').value = '';
+        
+        summaryView.style.display = 'none';
+        formView.style.display = 'block';
+        editBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+      }
     })
-    .catch(err => console.error('Error fetching patient medical info:', err));
+    .catch(err => console.error('Error fetching vitals:', err));
+}
+
+function fetchMedicalInfo(patientId) {
+  const summaryView = document.getElementById('medical-summary-view');
+  const formView = document.getElementById('medical-form-view');
+  const editBtn = document.getElementById('edit-medical-btn');
+  const cancelBtn = document.getElementById('cancel-medical-btn');
+  
+  document.getElementById('summary-blood-group').textContent = '-';
+  document.getElementById('summary-smokes').textContent = '-';
+  document.getElementById('summary-alcoholic').textContent = '-';
+  document.getElementById('summary-comorbidities').innerHTML = '';
+  document.getElementById('summary-family-history').textContent = '-';
+  document.getElementById('summary-known-allergies').textContent = '-';
+  
+  fetch(`/api/patient-medical-info/${patientId}/`)
+    .then(resp => resp.json())
+    .then(data => {
+      if (data.exists) {
+        document.getElementById('summary-blood-group').textContent = data.blood_group || '-';
+        document.getElementById('summary-smokes').textContent = data.smokes ? 'Yes' : 'No';
+        document.getElementById('summary-alcoholic').textContent = data.alcoholic ? 'Yes' : 'No';
+        document.getElementById('summary-family-history').textContent = data.family_history || 'None';
+        document.getElementById('summary-known-allergies').textContent = data.known_allergies || 'None';
+        
+        const comDiv = document.getElementById('summary-comorbidities');
+        if (data.comorbidity_names && data.comorbidity_names.length > 0) {
+          data.comorbidity_names.forEach(name => {
+            const span = document.createElement('span');
+            span.className = 'tag';
+            span.style.borderColor = 'var(--muted)';
+            span.style.color = 'var(--text)';
+            span.style.background = 'var(--bg)';
+            span.style.marginRight = '4px';
+            span.textContent = name;
+            comDiv.appendChild(span);
+          });
+        } else {
+          comDiv.textContent = 'None';
+        }
+        
+        const form = formView.querySelector('form');
+        if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = data.blood_group || '';
+        if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = data.family_history || '';
+        if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = data.known_allergies || '';
+        if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = !!data.smokes;
+        if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = !!data.alcoholic;
+        
+        const comorbidities = data.comorbidities || [];
+        form.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
+          cb.checked = comorbidities.includes(parseInt(cb.value));
+        });
+        
+        summaryView.style.display = 'block';
+        formView.style.display = 'none';
+        editBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'none';
+      } else {
+        const form = formView.querySelector('form');
+        if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = '';
+        if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = '';
+        if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = '';
+        if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = false;
+        if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = false;
+        form.querySelectorAll('input[name="comorbidities"]').forEach(cb => cb.checked = false);
+        
+        summaryView.style.display = 'none';
+        formView.style.display = 'block';
+        editBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+      }
+    })
+    .catch(err => console.error('Error fetching medical info:', err));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const patientSelect = document.getElementById('doctor_patient_id');
-  const medicalForm = document.querySelector('form input[name="action"][value="save_medical_info_doctor"]')?.form;
-  if (patientSelect && medicalForm) {
-    patientSelect.addEventListener('change', () => {
-      loadPatientMedicalInfo(patientSelect.value, medicalForm);
+  const editVitalsBtn = document.getElementById('edit-vitals-btn');
+  const cancelVitalsBtn = document.getElementById('cancel-vitals-btn');
+  const vitalsSummary = document.getElementById('vitals-summary-view');
+  const vitalsForm = document.getElementById('vitals-form-view');
+  
+  if (editVitalsBtn) {
+    editVitalsBtn.addEventListener('click', () => {
+      vitalsSummary.style.display = 'none';
+      vitalsForm.style.display = 'block';
+      editVitalsBtn.style.display = 'none';
+      cancelVitalsBtn.style.display = 'inline-block';
     });
-    // Trigger on load if a patient is pre-selected
-    if (patientSelect.value) {
-      loadPatientMedicalInfo(patientSelect.value, medicalForm);
+  }
+  if (cancelVitalsBtn) {
+    cancelVitalsBtn.addEventListener('click', () => {
+      vitalsSummary.style.display = 'block';
+      vitalsForm.style.display = 'none';
+      editVitalsBtn.style.display = 'inline-block';
+      cancelVitalsBtn.style.display = 'none';
+    });
+  }
+  
+  const editMedicalBtn = document.getElementById('edit-medical-btn');
+  const cancelMedicalBtn = document.getElementById('cancel-medical-btn');
+  const medicalSummary = document.getElementById('medical-summary-view');
+  const medicalForm = document.getElementById('medical-form-view');
+  
+  if (editMedicalBtn) {
+    editMedicalBtn.addEventListener('click', () => {
+      medicalSummary.style.display = 'none';
+      medicalForm.style.display = 'block';
+      editMedicalBtn.style.display = 'none';
+      cancelMedicalBtn.style.display = 'inline-block';
+    });
+  }
+  if (cancelMedicalBtn) {
+    cancelMedicalBtn.addEventListener('click', () => {
+      medicalSummary.style.display = 'block';
+      medicalForm.style.display = 'none';
+      editMedicalBtn.style.display = 'inline-block';
+      cancelMedicalBtn.style.display = 'none';
+    });
+  }
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const activeApptId = urlParams.get('active_appt');
+  if (activeApptId) {
+    const row = document.querySelector(`tr[data-appointment-id="${activeApptId}"]`);
+    if (row) {
+      const patientId = row.getAttribute('data-patient-id');
+      const tokenNumber = row.getAttribute('data-token-number');
+      const patientName = row.getAttribute('data-patient-name');
+      startPatientConsultation(activeApptId, patientId, tokenNumber, patientName);
     }
   }
 });
@@ -435,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('medicine-rows');
     const row = document.createElement('div');
     row.className = 'grid';
-    row.style.gridTemplateColumns = '2fr 1fr 1fr 2fr';
+    row.style.gridTemplateColumns = 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)';
     row.style.gap = '6px';
     row.innerHTML = '' +
       '<input type="text" class="med-search" placeholder="Medicine name">' +

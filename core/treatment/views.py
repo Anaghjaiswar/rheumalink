@@ -201,7 +201,7 @@ def compounder_dashboard(request):
 		return redirect("compounder-dashboard")
 
 	search_q = request.GET.get("search_q", "").strip()
-	search_results = None
+	is_recent_list = False
 	if search_q:
 		from django.db.models import Q
 		search_results = PatientProfile.objects.select_related("filerecord").filter(
@@ -211,6 +211,9 @@ def compounder_dashboard(request):
 			Q(filerecord__internal_file_number__icontains=search_q) |
 			Q(filerecord__external_file_number__icontains=search_q)
 		).distinct()
+	else:
+		search_results = PatientProfile.objects.select_related("filerecord").order_by("-id")[:5]
+		is_recent_list = True
 
 	today_appointments = Appointment.objects.select_related("patient__filerecord", "doctor").filter(
 		appointment_date=date.today()
@@ -226,6 +229,7 @@ def compounder_dashboard(request):
 		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:10],
 		"pending_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:10],
 		"search_results": search_results,
+		"is_recent_list": is_recent_list,
 	}
 	return render(request, "treatment/compounder_dashboard.html", context)
 
@@ -241,6 +245,7 @@ def doctor_dashboard(request):
 
 	if request.method == "POST":
 		action = request.POST.get("action")
+		active_appt_id = request.POST.get("active_appt_id") or request.POST.get("appointment_id")
 
 		if action == "update_status":
 			appointment = get_object_or_404(Appointment, id=request.POST.get("appointment_id"))
@@ -251,6 +256,19 @@ def doctor_dashboard(request):
 				_broadcast_queue_update(appt.doctor_id)
 			else:
 				messages.error(request, "Could not update appointment status.")
+
+		elif action == "capture_vitals":
+			appointment = get_object_or_404(Appointment, id=request.POST.get("appointment_id"))
+			instance = Vitals.objects.filter(appointment=appointment).first()
+			vitals_form = VitalsForm(request.POST, instance=instance)
+			if vitals_form.is_valid():
+				vitals = vitals_form.save(commit=False)
+				vitals.appointment = appointment
+				vitals.patient = appointment.patient
+				vitals.save()
+				messages.success(request, "Vitals saved successfully.")
+			else:
+				messages.error(request, "Invalid vitals data.")
 
 		elif action == "save_consultation":
 			appointment = get_object_or_404(Appointment, id=request.POST.get("appointment_id"))
@@ -377,7 +395,10 @@ def doctor_dashboard(request):
 			process_lab_report_task.delay(report.id)
 			messages.success(request, "Lab report sync requested.")
 
-		query = f"?doctor={doctor_id}" if doctor_id else ""
+		doctor_param = f"doctor={doctor_id}" if doctor_id else ""
+		appt_param = f"active_appt={active_appt_id}" if active_appt_id else ""
+		params = [p for p in [doctor_param, appt_param] if p]
+		query = "?" + "&".join(params) if params else ""
 		return redirect(f"/doctor-dashboard/{query}")
 
 	if doctor_id:
@@ -411,6 +432,7 @@ def doctor_dashboard(request):
 		"prescription_form": PrescriptionForm(),
 		"diagnosis_form": PatientDiagnosisForm(),
 		"medical_form": PatientMedicalInfoForm(),
+		"vitals_form": VitalsForm(),
 		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:20],
 		"lab_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:20],
 		"search_results": search_results,
@@ -572,6 +594,7 @@ def get_patient_medical_info(request, patient_id):
 			"smokes": False,
 			"alcoholic": False,
 			"comorbidities": [],
+			"comorbidity_names": [],
 		})
 
 	return JsonResponse({
@@ -582,4 +605,34 @@ def get_patient_medical_info(request, patient_id):
 		"smokes": medical_info.smokes,
 		"alcoholic": medical_info.alcohololic,
 		"comorbidities": list(medical_info.comorbidities.values_list("id", flat=True)),
+		"comorbidity_names": list(medical_info.comorbidities.values_list("name", flat=True)),
+	})
+
+
+def get_appointment_vitals(request, appointment_id):
+	appointment = get_object_or_404(Appointment, id=appointment_id)
+	vitals = Vitals.objects.filter(appointment=appointment).first()
+	if not vitals:
+		return JsonResponse({
+			"exists": False,
+			"weight": "",
+			"height": "",
+			"bp_systolic": "",
+			"bp_diastolic": "",
+			"pulse_rate": "",
+			"spo2": "",
+			"temperature": "",
+			"pain_scale": "",
+		})
+
+	return JsonResponse({
+		"exists": True,
+		"weight": vitals.weight or "",
+		"height": vitals.height or "",
+		"bp_systolic": vitals.bp_systolic or "",
+		"bp_diastolic": vitals.bp_diastolic or "",
+		"pulse_rate": vitals.pulse_rate or "",
+		"spo2": vitals.spo2 or "",
+		"temperature": vitals.temperature or "",
+		"pain_scale": vitals.pain_scale or "",
 	})

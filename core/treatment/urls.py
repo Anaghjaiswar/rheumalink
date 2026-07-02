@@ -11,4 +11,5 @@ urlpatterns = [
     path("api/medicine-autosuggest/", views.medicine_autosuggest, name="medicine-autosuggest"),
     path("api/das28/<int:appointment_id>/", views.das28_score, name="das28-score"),
     path("api/patient-medical-info/<int:patient_id>/", views.get_patient_medical_info, name="patient-medical-info"),
+    path("api/patient-vitals/<int:appointment_id>/", views.get_appointment_vitals, name="patient-vitals"),
 ]

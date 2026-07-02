@@ -138,6 +138,7 @@
       padding: 8px 10px;
       font: inherit;
       background: #fff;
+      min-width: 0;
     }
 
     textarea {
@@ -352,11 +353,13 @@
         wrapper.style.gap = '6px';
         wrapper.style.width = '100%';
         wrapper.style.position = 'relative';
+        wrapper.style.minWidth = '0';
 
         input.parentNode.insertBefore(wrapper, input);
         wrapper.appendChild(input);
         input.style.flex = '1';
         input.style.width = 'auto';
+        input.style.minWidth = '0';
 
         const micBtn = document.createElement('button');
         micBtn.type = 'button';

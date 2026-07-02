@@ -41,7 +41,15 @@ class Appointment(models.Model):
 
 
     def save(self, *args, **kwargs):
-        if not self.token_number:
+        if self.pk:
+            try:
+                orig = Appointment.objects.get(pk=self.pk)
+                if orig.doctor != self.doctor or orig.appointment_date != self.appointment_date:
+                    self.token_number = self.generate_token_number()
+            except Appointment.DoesNotExist:
+                if not self.token_number:
+                    self.token_number = self.generate_token_number()
+        elif not self.token_number:
             self.token_number = self.generate_token_number()
         super().save(*args, **kwargs)
 

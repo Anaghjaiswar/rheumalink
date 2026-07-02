@@ -20,6 +20,9 @@
 
   {% if search_results %}
     <div style="margin-top: 15px; overflow-x: auto;">
+      <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;">
+        {% if is_recent_list %}Recently Registered Patients{% else %}Search Results{% endif %}
+      </h3>
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="border-bottom: 2px solid var(--line); text-align: left;">
