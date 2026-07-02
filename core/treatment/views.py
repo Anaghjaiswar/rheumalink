@@ -116,7 +116,7 @@ def _generate_prescription_pdf(prescription):
 
 
 def _doctor_queryset(doctor_id):
-	base = Appointment.objects.select_related("patient", "doctor").filter(appointment_date=date.today())
+	base = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
 	if doctor_id:
 		base = base.filter(doctor_id=doctor_id)
 	return base
@@ -130,7 +130,8 @@ def compounder_dashboard(request):
 			patient_form = PatientProfileForm(request.POST)
 			if patient_form.is_valid():
 				patient = patient_form.save()
-				FileRecord.objects.get_or_create(patient=patient)
+				ext_num = request.POST.get("external_file_number", "").strip() or None
+				FileRecord.objects.get_or_create(patient=patient, defaults={"external_file_number": ext_num})
 				messages.success(request, "Patient profile and file record created.")
 			else:
 				messages.error(request, "Could not create patient profile.")
@@ -199,7 +200,19 @@ def compounder_dashboard(request):
 
 		return redirect("compounder-dashboard")
 
-	today_appointments = Appointment.objects.select_related("patient", "doctor").filter(
+	search_q = request.GET.get("search_q", "").strip()
+	search_results = None
+	if search_q:
+		from django.db.models import Q
+		search_results = PatientProfile.objects.select_related("filerecord").filter(
+			Q(first_name__icontains=search_q) |
+			Q(last_name__icontains=search_q) |
+			Q(contact_no__icontains=search_q) |
+			Q(filerecord__internal_file_number__icontains=search_q) |
+			Q(filerecord__external_file_number__icontains=search_q)
+		).distinct()
+
+	today_appointments = Appointment.objects.select_related("patient__filerecord", "doctor").filter(
 		appointment_date=date.today()
 	)
 
@@ -210,8 +223,9 @@ def compounder_dashboard(request):
 		"medical_form": PatientMedicalInfoForm(),
 		"report_form": LabResultForm(),
 		"today_appointments": today_appointments,
-		"recent_patients": PatientProfile.objects.order_by("-id")[:10],
-		"pending_reports": LabResult.objects.select_related("patient", "appointment")[:10],
+		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:10],
+		"pending_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:10],
+		"search_results": search_results,
 	}
 	return render(request, "treatment/compounder_dashboard.html", context)
 
@@ -374,6 +388,18 @@ def doctor_dashboard(request):
 	attended = appointments.filter(status="A")
 	waiting = appointments.filter(status="T")
 
+	search_q = request.GET.get("search_q", "").strip()
+	search_results = None
+	if search_q:
+		from django.db.models import Q
+		search_results = PatientProfile.objects.select_related("filerecord").filter(
+			Q(first_name__icontains=search_q) |
+			Q(last_name__icontains=search_q) |
+			Q(contact_no__icontains=search_q) |
+			Q(filerecord__internal_file_number__icontains=search_q) |
+			Q(filerecord__external_file_number__icontains=search_q)
+		).distinct()
+
 	context = {
 		"doctor_form": DoctorFilterForm(initial={"doctor": doctor_id}),
 		"selected_doctor": selected_doctor,
@@ -385,8 +411,9 @@ def doctor_dashboard(request):
 		"prescription_form": PrescriptionForm(),
 		"diagnosis_form": PatientDiagnosisForm(),
 		"medical_form": PatientMedicalInfoForm(),
-		"recent_patients": PatientProfile.objects.order_by("-id")[:20],
-		"lab_reports": LabResult.objects.select_related("patient", "appointment")[:20],
+		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:20],
+		"lab_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:20],
+		"search_results": search_results,
 	}
 	return render(request, "treatment/doctor_dashboard.html", context)
 

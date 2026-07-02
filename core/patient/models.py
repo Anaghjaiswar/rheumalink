@@ -23,7 +23,10 @@ class PatientProfile(models.Model):
     date_registered = models.DateField(auto_now_add=True, help_text="Date when the patient was registered", verbose_name="Date Registered") 
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} {self.type}"
+        file_num = ""
+        if hasattr(self, 'filerecord') and self.filerecord.internal_file_number:
+            file_num = f" ({self.filerecord.internal_file_number})"
+        return f"{self.first_name} {self.last_name}{file_num} - {self.type}"
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"

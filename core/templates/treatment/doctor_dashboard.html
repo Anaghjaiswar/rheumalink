@@ -23,6 +23,51 @@
   <article class="stat"><span>Total Today</span><strong id="total-count">{{ appointments|length }}</strong></article>
 </section>
 
+<section class="panel">
+  <h2>Patient & File Search</h2>
+  <form method="get" style="display: flex; gap: 8px; align-items: center; margin-bottom: 0;">
+    <input type="hidden" name="doctor" value="{{ request.GET.doctor|default:'' }}">
+    <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ request.GET.search_q|default:'' }}" style="flex: 1; margin: 0;">
+    <button type="submit" style="margin: 0; width: auto; padding: 10px 20px;">Search</button>
+    {% if request.GET.search_q %}
+      <a href="?doctor={{ request.GET.doctor|default:'' }}" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if search_results %}
+    <div style="margin-top: 15px; overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--line); text-align: left;">
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Internal File No.</th>
+            <th>External File No.</th>
+            <th>Type</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pat in search_results %}
+            <tr style="border-bottom: 1px solid var(--line);">
+              <td><strong>{{ pat.get_full_name }}</strong></td>
+              <td>{{ pat.contact_no }}</td>
+              <td><code>{{ pat.filerecord.internal_file_number }}</code></td>
+              <td>{{ pat.filerecord.external_file_number|default:"-" }}</td>
+              <td><span class="tag">{{ pat.type }}</span></td>
+              <td>
+                <button type="button" style="margin: 0; padding: 4px 8px; font-size: 0.85rem;" onclick="selectPatientForDoctor('{{ pat.id }}')">Select Patient</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif request.GET.search_q %}
+    <p style="margin-top: 15px; color: var(--muted);">No patients found matching "{{ request.GET.search_q }}".</p>
+  {% endif %}
+</section>
+
 <section class="grid two">
   <article class="panel">
     <h2>Attending Patients</h2>
@@ -194,7 +239,7 @@
     <select name="patient_id" id="doctor_patient_id" required>
       <option value="">Select patient</option>
       {% for patient in recent_patients %}
-        <option value="{{ patient.id }}">{{ patient.get_full_name }} | {{ patient.contact_no }}</option>
+        <option value="{{ patient.id }}">{{ patient.get_full_name }} | File: {{ patient.filerecord.internal_file_number }}{% if patient.filerecord.external_file_number %} (Ext: {{ patient.filerecord.external_file_number }}){% endif %} | {{ patient.contact_no }}</option>
       {% endfor %}
     </select>
     {{ medical_form.as_p }}
@@ -210,7 +255,16 @@
       {% for report in lab_reports %}
         <tr>
           <td>{{ report.report_name }}</td>
-          <td>{{ report.patient.get_full_name }}</td>
+          <td>
+            <strong>{{ report.patient.get_full_name }}</strong>
+            <br>
+            <small style="color:var(--muted); font-size:0.8rem;">
+              File: {{ report.patient.filerecord.internal_file_number }}
+              {% if report.patient.filerecord.external_file_number %}
+                (Ext: {{ report.patient.filerecord.external_file_number }})
+              {% endif %}
+            </small>
+          </td>
           <td>
             <form method="post">
               {% csrf_token %}
@@ -231,6 +285,23 @@
 
 {% block extra_js %}
 <script>
+function selectPatientForDoctor(patientId) {
+  const patientSelect = document.getElementById('doctor_patient_id');
+  if (patientSelect) {
+    patientSelect.value = patientId;
+  }
+  
+  // Try to find the panel and scroll to it
+  const panel = document.getElementById('doctor_patient_id')?.closest('.panel');
+  if (panel) {
+    panel.scrollIntoView({ behavior: 'smooth' });
+    panel.style.outline = '2px solid #4caf50';
+    setTimeout(() => {
+      panel.style.outline = 'none';
+    }, 1500);
+  }
+}
+
 (function () {
   const doctorId = new URLSearchParams(window.location.search).get('doctor');
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';

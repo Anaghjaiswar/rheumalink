@@ -30,6 +30,10 @@ class PatientProfileForm(forms.ModelForm):
 
 
 class AppointmentForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["patient"].queryset = PatientProfile.objects.select_related("filerecord").all()
+
     class Meta:
         model = Appointment
         fields = [

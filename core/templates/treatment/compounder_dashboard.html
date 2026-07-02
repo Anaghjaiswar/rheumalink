@@ -8,6 +8,50 @@
   <article class="stat"><span>Pending Lab Sync</span><strong>{{ pending_reports|length }}</strong></article>
 </section>
 
+<section class="panel">
+  <h2>Patient & File Search</h2>
+  <form method="get" style="display: flex; gap: 8px; align-items: center; margin-bottom: 0;">
+    <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ request.GET.search_q|default:'' }}" style="flex: 1; margin: 0;">
+    <button type="submit" style="margin: 0; width: auto; padding: 10px 20px;">Search</button>
+    {% if request.GET.search_q %}
+      <a href="?" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if search_results %}
+    <div style="margin-top: 15px; overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--line); text-align: left;">
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Internal File No.</th>
+            <th>External File No.</th>
+            <th>Type</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pat in search_results %}
+            <tr style="border-bottom: 1px solid var(--line);">
+              <td><strong>{{ pat.get_full_name }}</strong></td>
+              <td>{{ pat.contact_no }}</td>
+              <td><code>{{ pat.filerecord.internal_file_number }}</code></td>
+              <td>{{ pat.filerecord.external_file_number|default:"-" }}</td>
+              <td><span class="tag">{{ pat.type }}</span></td>
+              <td>
+                <button type="button" style="margin: 0; padding: 4px 8px; font-size: 0.85rem;" onclick="selectPatientForDashboard('{{ pat.id }}')">Book / Select</button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif request.GET.search_q %}
+    <p style="margin-top: 15px; color: var(--muted);">No patients found matching "{{ request.GET.search_q }}".</p>
+  {% endif %}
+</section>
+
 <section class="grid two">
   <article class="panel">
     <h2>1. Register Patient + File Record</h2>
@@ -15,6 +59,10 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="register_patient">
       {{ patient_form.as_p }}
+      <p>
+        <label for="external_file_number">External File Number (Optional)</label>
+        <input type="text" name="external_file_number" id="external_file_number" placeholder="e.g. EXT-9874">
+      </p>
       <button type="submit">Create Patient Profile</button>
     </form>
   </article>
@@ -24,7 +72,37 @@
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="action" value="create_appointment">
-      {{ appointment_form.as_p }}
+      <p>
+        {{ appointment_form.patient.label_tag }}
+        {{ appointment_form.patient }}
+      </p>
+      <p>
+        {{ appointment_form.doctor.label_tag }}
+        {{ appointment_form.doctor }}
+      </p>
+      <p>
+        {{ appointment_form.appointment_date.label_tag }}
+        {{ appointment_form.appointment_date }}
+        <span style="display: block; margin-top: 4px; font-size: 0.85rem;">
+          <a href="#" onclick="setAppointmentDate('today'); return false;" style="margin-right: 12px; font-weight: bold;">Today</a>
+          <a href="#" onclick="setAppointmentDate('tomorrow'); return false;" style="font-weight: bold;">Tomorrow</a>
+        </span>
+      </p>
+      <p>
+        {{ appointment_form.appointment_time.label_tag }}
+        {{ appointment_form.appointment_time }}
+        <span style="display: block; margin-top: 4px; font-size: 0.85rem;">
+          <a href="#" onclick="setAppointmentTimeNow(); return false;" style="font-weight: bold;">Now</a>
+        </span>
+      </p>
+      <p>
+        {{ appointment_form.status.label_tag }}
+        {{ appointment_form.status }}
+      </p>
+      <p>
+        {{ appointment_form.reason_for_visit.label_tag }}
+        {{ appointment_form.reason_for_visit }}
+      </p>
       <button type="submit">Book Appointment</button>
     </form>
   </article>
@@ -40,7 +118,7 @@
       <select name="patient_id" id="patient_id" required>
         <option value="">Select patient</option>
         {% for patient in recent_patients %}
-          <option value="{{ patient.id }}">{{ patient.get_full_name }} | {{ patient.contact_no }}</option>
+          <option value="{{ patient.id }}">{{ patient.get_full_name }} | File: {{ patient.filerecord.internal_file_number }}{% if patient.filerecord.external_file_number %} (Ext: {{ patient.filerecord.external_file_number }}){% endif %} | {{ patient.contact_no }}</option>
         {% endfor %}
       </select>
       {{ medical_form.as_p }}
@@ -76,7 +154,16 @@
       {% for appointment in today_appointments %}
         <tr>
           <td>{{ appointment.token_number }}</td>
-          <td>{{ appointment.patient.get_full_name }}</td>
+          <td>
+            <strong>{{ appointment.patient.get_full_name }}</strong>
+            <br>
+            <small style="color:var(--muted); font-size:0.8rem;">
+              File: {{ appointment.patient.filerecord.internal_file_number }}
+              {% if appointment.patient.filerecord.external_file_number %}
+                (Ext: {{ appointment.patient.filerecord.external_file_number }})
+              {% endif %}
+            </small>
+          </td>
           <td>{{ appointment.doctor|default:'Unassigned' }}</td>
           <td>
             <span class="tag {% if appointment.status == 'T' %}waiting{% elif appointment.status == 'I' %}in{% else %}attended{% endif %}">
@@ -164,6 +251,59 @@
 
 {% block extra_js %}
 <script>
+function setAppointmentDate(offset) {
+  const dateField = document.getElementById('id_appointment_date');
+  if (!dateField) return;
+
+  const targetDate = new Date();
+  if (offset === 'tomorrow') {
+    targetDate.setDate(targetDate.getDate() + 1);
+  }
+
+  const yyyy = targetDate.getFullYear();
+  const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(targetDate.getDate()).padStart(2, '0');
+  dateField.value = `${yyyy}-${mm}-${dd}`;
+}
+
+function setAppointmentTimeNow() {
+  const timeField = document.getElementById('id_appointment_time');
+  if (!timeField) return;
+
+  const targetTime = new Date();
+  const hours = String(targetTime.getHours()).padStart(2, '0');
+  const minutes = String(targetTime.getMinutes()).padStart(2, '0');
+  timeField.value = `${hours}:${minutes}`;
+}
+function selectPatientForDashboard(patientId) {
+  const appointmentForm = document.querySelector('form input[name="action"][value="create_appointment"]')?.form;
+  const medicalForm = document.querySelector('form input[name="action"][value="save_medical_info"]')?.form;
+  const reportForm = document.querySelector('form input[name="action"][value="upload_lab_report"]')?.form;
+
+  if (appointmentForm) {
+    const patientField = appointmentForm.querySelector('[name="patient"]');
+    if (patientField) patientField.value = patientId;
+  }
+  if (medicalForm) {
+    const patientField = medicalForm.querySelector('[name="patient_id"]');
+    if (patientField) patientField.value = patientId;
+  }
+  if (reportForm) {
+    const patientField = reportForm.querySelector('[name="patient"]');
+    if (patientField) patientField.value = patientId;
+  }
+  
+  // Try to find the Booking Panel and scroll to it
+  const bookingPanel = appointmentForm?.closest('.panel');
+  if (bookingPanel) {
+    bookingPanel.scrollIntoView({ behavior: 'smooth' });
+    bookingPanel.style.outline = '2px solid #4caf50';
+    setTimeout(() => {
+      bookingPanel.style.outline = 'none';
+    }, 1500);
+  }
+}
+
 (function () {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
   const socketUrl = protocol + '://' + window.location.host + '/ws/doctor-queue/';
