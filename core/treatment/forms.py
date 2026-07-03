@@ -9,6 +9,7 @@ from .models import (
     Prescription,
     Vitals,
     jointspain,
+    RumatDiagnosis,
 )
 
 
@@ -155,3 +156,11 @@ class DoctorFilterForm(forms.Form):
         required=False,
         empty_label="All Doctors",
     )
+
+
+class RumatDiagnosisForm(forms.ModelForm):
+    class Meta:
+        model = RumatDiagnosis
+        fields = "__all__"
+        exclude = ["patient_link"]
+

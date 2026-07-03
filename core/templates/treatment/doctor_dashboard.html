@@ -383,6 +383,14 @@
         <button type="button" id="open-joint-chart" class="alt">Open Joint Chart Page</button>
       </div>
 
+      <div class="panel" style="padding:10px; margin:8px 0; background:#f5f8fc;">
+        <h3 style="margin-bottom:8px;">Rheumat Symptoms Checklist (AI Summary)</h3>
+        <p style="margin:0 0 8px; font-size:0.85rem; color:var(--muted);">
+          Fill detailed symptoms checklist and generate professional clinical notes using AI on a separate page.
+        </p>
+        <button type="button" id="open-rumat-diagnosis" class="alt" style="border-color: #2563eb; color: #2563eb;">Open Rumat Diagnosis Page</button>
+      </div>
+
       <label for="rumat_mode">Rheumat Diagnosis Fill Mode</label>
       <select name="rumat_mode" id="rumat_mode">
         <option value="manual">Manual by Doctor</option>
@@ -741,6 +749,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
     window.location.href = '/doctor/joint-chart/' + appointmentId + '/' + doctorParam;
+  });
+
+  document.getElementById('open-rumat-diagnosis').addEventListener('click', function () {
+    const appointmentId = document.getElementById('diagnosis_appointment').value;
+    if (!appointmentId) {
+      alert('Select appointment first.');
+      return;
+    }
+    const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
+    window.location.href = '/doctor/rumat-diagnosis/' + appointmentId + '/' + doctorParam;
   });
 
   document.getElementById('calculate-das28').addEventListener('click', function () {

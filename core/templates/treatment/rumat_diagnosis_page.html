@@ -1,0 +1,795 @@
+{% extends 'base.html' %}
+{% block title %}Rheumat Diagnosis Checklist{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --grey-light: #f3f4f6;
+    --grey-hover: #e5e7eb;
+    --primary-blue: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success-green: #10b981;
+    --text-dark: #1f2937;
+    --text-muted: #6b7280;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .diag-container {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 20px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .diag-header {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: #ffffff;
+    padding: 24px;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+
+  .diag-header h1 {
+    margin: 0 0 8px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .diag-header p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.95rem;
+  }
+
+  .patient-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+  }
+
+  .patient-summary div {
+    flex: 1 1 200px;
+  }
+
+  .patient-summary span {
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  /* Accordion Styles */
+  .accordion-group {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 30px;
+  }
+
+  .accordion-row {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+  }
+
+  .accordion-row.active {
+    border-color: var(--primary-blue);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+  }
+
+  .accordion-header {
+    background-color: var(--grey-light);
+    height: 70px; /* ~3 cm height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+    padding: 0 24px;
+    position: relative;
+  }
+
+  .accordion-header:hover {
+    background-color: var(--grey-hover);
+  }
+
+  .accordion-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    text-align: center;
+    letter-spacing: -0.01em;
+  }
+
+  .accordion-header::after {
+    content: '▼';
+    position: absolute;
+    right: 24px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+  }
+
+  .accordion-row.active .accordion-header::after {
+    transform: rotate(180deg);
+    color: var(--primary-blue);
+  }
+
+  .accordion-content {
+    display: none;
+    padding: 24px;
+    background-color: #ffffff;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  /* Checkbox & Grid Layouts */
+  .grid-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .checkbox-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-dark);
+    padding: 8px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+  }
+
+  .checkbox-wrapper:hover {
+    background-color: #f9fafb;
+  }
+
+  .checkbox-wrapper input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    margin-top: 2px;
+    cursor: pointer;
+    accent-color: var(--primary-blue);
+  }
+
+  .input-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+  }
+
+  .input-wrapper input, .input-wrapper textarea {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 400;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .input-wrapper input:focus, .input-wrapper textarea:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  }
+
+  .duration-fields {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed #e5e7eb;
+  }
+
+  /* Action Section */
+  .action-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 30px;
+    box-shadow: var(--shadow);
+  }
+
+  .ai-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .ai-btn {
+    background: linear-gradient(135deg, #4f46e5, #3730a3);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ai-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(79, 70, 229, 0.35);
+  }
+
+  .ai-btn:disabled {
+    background: #9ca3af;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .summary-textarea {
+    width: 100%;
+    height: 120px;
+    padding: 14px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    outline: none;
+    resize: vertical;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+  }
+
+  .summary-textarea:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .button-group {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  .submit-btn {
+    background-color: var(--success-green);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .submit-btn:hover {
+    background-color: #059669;
+  }
+
+  .cancel-btn {
+    background-color: #ffffff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 12px 28px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .cancel-btn:hover {
+    background-color: #f9fafb;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: none;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="diag-container">
+  
+  <div class="diag-header">
+    <h1>Rheumat Diagnosis & Symptoms Book</h1>
+    <p>Document patient manifestations and generate AI clinical notes instantly.</p>
+  </div>
+
+  <div class="patient-summary">
+    <div><span>Patient Name:</span> {{ patient.get_full_name }}</div>
+    <div><span>Sex/Age:</span> {{ patient.sex }} / {{ patient.age_display }}</div>
+    <div><span>Appointment:</span> #{{ appointment.token_number }} ({{ appointment.appointment_date }})</div>
+    <div><span>Consulting Doctor:</span> {{ appointment.doctor.user.get_full_name }}</div>
+  </div>
+
+  <form method="post" id="diagnosis-form">
+    {% csrf_token %}
+
+    <div class="accordion-group">
+      
+      <!-- 1. Musculoskeletal Manifestations -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Musculoskeletal Manifestations</h2>
+        </div>
+        <div class="accordion-content">
+          <div class="duration-fields">
+            <div class="input-wrapper" style="flex: 1;">
+              <label>Duration Years</label>
+              {{ form.duration_years_msm }}
+            </div>
+            <div class="input-wrapper" style="flex: 1;">
+              <label>Duration Months</label>
+              {{ form.duration_months_msm }}
+            </div>
+            <div class="input-wrapper" style="flex: 1;">
+              <label>Duration Days</label>
+              {{ form.duration_days_msm }}
+            </div>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label class="checkbox-wrapper">
+              {{ form.msm }} <span>Active Musculoskeletal Manifestation</span>
+            </label>
+            <label class="checkbox-wrapper">
+              {{ form.symmetricity }} <span>Symmetric Involvement</span>
+            </label>
+          </div>
+          <h4 style="margin: 12px 0 8px; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">Joint Involvement (ji)</h4>
+          <div class="grid-layout" style="margin-bottom: 16px;">
+            <label class="checkbox-wrapper">{{ form.ji_hand_right_msm }} <span>Hand Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_hand_left_msm }} <span>Hand Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_wrist_right_msm }} <span>Wrist Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_wrist_left_msm }} <span>Wrist Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_elbow_right_msm }} <span>Elbow Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_elbow_left_msm }} <span>Elbow Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_shoulder_right_msm }} <span>Shoulder Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_shoulder_left_msm }} <span>Shoulder Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_hip_right_msm }} <span>Hip Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_hip_left_msm }} <span>Hip Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_knee_right_msm }} <span>Knee Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_knee_left_msm }} <span>Knee Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_ankle_right_msm }} <span>Ankle Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_ankle_left_msm }} <span>Ankle Left</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_foot_right_msm }} <span>Foot Right</span></label>
+            <label class="checkbox-wrapper">{{ form.ji_foot_left_msm }} <span>Foot Left</span></label>
+          </div>
+          <h4 style="margin: 12px 0 8px; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">Limitation of Movement (lom)</h4>
+          <div class="grid-layout" style="margin-bottom: 16px;">
+            <label class="checkbox-wrapper">{{ form.lom_hand_right_msm }} <span>Hand Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_hand_left_msm }} <span>Hand Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_wrist_right_msm }} <span>Wrist Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_wrist_left_msm }} <span>Wrist Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_elbow_right_msm }} <span>Elbow Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_elbow_left_msm }} <span>Elbow Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_shoulder_right_msm }} <span>Shoulder Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_shoulder_left_msm }} <span>Shoulder Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_hip_right_msm }} <span>Hip Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_hip_left_msm }} <span>Hip Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_knee_right_msm }} <span>Knee Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_knee_left_msm }} <span>Knee Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_ankle_right_msm }} <span>Ankle Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_ankle_left_msm }} <span>Ankle Left LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_foot_right_msm }} <span>Foot Right LOM</span></label>
+            <label class="checkbox-wrapper">{{ form.lom_foot_left_msm }} <span>Foot Left LOM</span></label>
+          </div>
+          <h4 style="margin: 12px 0 8px; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">Pattern</h4>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.pattern_addctive_msm }} <span>Additive Pattern</span></label>
+            <label class="checkbox-wrapper">{{ form.relapsing_msm }} <span>Relapsing</span></label>
+            <label class="checkbox-wrapper">{{ form.episodic_msm }} <span>Episodic</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Back Ache -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Back Ache</h2>
+        </div>
+        <div class="accordion-content">
+          <div class="duration-fields">
+            <div class="input-wrapper" style="flex: 1;">
+              <label>Duration Years</label>
+              {{ form.duration_years_ba }}
+            </div>
+            <div class="input-wrapper" style="flex: 1;">
+              <label>Duration Months</label>
+              {{ form.duration_months_ba }}
+            </div>
+            <div class="input-wrapper" style="flex: 1;">
+              <label>Duration Days</label>
+              {{ form.duration_days_ba }}
+            </div>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label class="checkbox-wrapper">{{ form.ba }} <span>Back Ache</span></label>
+            <label class="checkbox-wrapper">{{ form.early_morning_stiffness_ba }} <span>Early Morning Stiffness</span></label>
+          </div>
+          <h4 style="margin: 12px 0 8px; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">Area Involved</h4>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.area_involved_low_ba }} <span>Low Back</span></label>
+            <label class="checkbox-wrapper">{{ form.area_involved_mid_ba }} <span>Mid Back</span></label>
+            <label class="checkbox-wrapper">{{ form.area_involved_neck_ba }} <span>Neck</span></label>
+            <label class="checkbox-wrapper">{{ form.area_involved_buttock_ba }} <span>Buttock</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Weakness -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Weakness</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.wk }} <span>Weakness</span></label>
+          <div class="input-wrapper">
+            <label>Description Weakness</label>
+            {{ form.description_wk }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Dermatological -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Dermatological</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.der }} <span>Dermatological Condition</span></label>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.photosensitivity_der }} <span>Photosensitivity</span></label>
+            <label class="checkbox-wrapper">{{ form.malarrash_der }} <span>Malar Rash</span></label>
+            <label class="checkbox-wrapper">{{ form.prupura_der }} <span>Purpura</span></label>
+            <label class="checkbox-wrapper">{{ form.rec_oral_ulcer_der }} <span>Recurrent Oral Ulcer</span></label>
+            <label class="checkbox-wrapper">{{ form.gangrene_der }} <span>Gangrene</span></label>
+            <label class="checkbox-wrapper">{{ form.raynauds_phenomenon_der }} <span>Raynaud's Phenomenon</span></label>
+            <label class="checkbox-wrapper">{{ form.skin_thickening_der }} <span>Skin Thickening</span></label>
+            <label class="checkbox-wrapper">{{ form.dry_mouth_der }} <span>Dry Mouth</span></label>
+            <label class="checkbox-wrapper">{{ form.psoriasis_skin_der }} <span>Psoriasis Skin</span></label>
+            <label class="checkbox-wrapper">{{ form.psoriasis_scalp_der }} <span>Psoriasis Scalp</span></label>
+            <label class="checkbox-wrapper">{{ form.psoriasis_nail_der }} <span>Psoriasis Nail</span></label>
+            <label class="checkbox-wrapper">{{ form.hair_loss_der }} <span>Hair Loss</span></label>
+            <label class="checkbox-wrapper">{{ form.urticaria_der }} <span>Urticaria</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Ophthalmological -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Ophthalmological</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.opth }} <span>Ophthalmological Condition</span></label>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.dry_eyes_opth }} <span>Dry Eyes</span></label>
+            <label class="checkbox-wrapper">{{ form.scleritis_episcleritis_opth }} <span>Scleritis/Episcleritis</span></label>
+            <label class="checkbox-wrapper">{{ form.redness_opth }} <span>Redness</span></label>
+            <label class="checkbox-wrapper">{{ form.iridocyclitis_opth }} <span>Iridocyclitis</span></label>
+            <label class="checkbox-wrapper">{{ form.bov_opth }} <span>B+OV</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Constitutional -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Constitutional</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.cons }} <span>Constitutional Symptoms</span></label>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.wt_loss_cons }} <span>Weight Loss</span></label>
+            <label class="checkbox-wrapper">{{ form.wt_gain_cons }} <span>Weight Gain</span></label>
+            <label class="checkbox-wrapper">{{ form.fever_cons }} <span>Fever</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Allergy -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Allergy</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.allergy }} <span>Allergy Exists</span></label>
+          <div style="display: grid; gap: 12px;">
+            <div class="input-wrapper">
+              <label>Drugs Allergy Description</label>
+              {{ form.description_drugs_allergy }}
+            </div>
+            <div class="input-wrapper">
+              <label>Other Allergy Description</label>
+              {{ form.description_other_allergy }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Systems -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Systems</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.sys }} <span>Systems Manifestations</span></label>
+          <div style="display: grid; gap: 12px;">
+            <div class="input-wrapper">
+              <label>Cardiorespiratory Description</label>
+              {{ form.description_cardiorespiratory_sys }}
+            </div>
+            <div class="input-wrapper">
+              <label>Gastrointestinal Description</label>
+              {{ form.description_gastrointestinal_sys }}
+            </div>
+            <div class="input-wrapper">
+              <label>Central Nervous System (CNS) Description</label>
+              {{ form.description_cns_sys }}
+            </div>
+            <div class="input-wrapper">
+              <label>Respiratory System (RS) Description</label>
+              {{ form.description_rs_sys }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. Past History -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Past History</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.ph }} <span>Past History Record</span></label>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.dm_ph }} <span>Diabetes Mellitus (DM)</span></label>
+            <label class="checkbox-wrapper">{{ form.htn_ph }} <span>Hypertension (HTN)</span></label>
+            <label class="checkbox-wrapper">{{ form.thyroid_ph }} <span>Thyroid Disorder</span></label>
+            <label class="checkbox-wrapper">{{ form.ihd_ph }} <span>Ischemic Heart Disease</span></label>
+            <label class="checkbox-wrapper">{{ form.seizures_ph }} <span>Seizures</span></label>
+            <label class="checkbox-wrapper">{{ form.stroke_ph }} <span>Stroke</span></label>
+            <label class="checkbox-wrapper">{{ form.leukoderma_ph }} <span>Leukoderma</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. Obstetric History -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Obstetric History</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.oh }} <span>Obstetric History Record</span></label>
+          <div class="input-wrapper">
+            <label>Obstetric Details</label>
+            {{ form.description_oh }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 11. Personal History -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Personal History</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.perh }} <span>Personal History Record</span></label>
+          <div class="grid-layout">
+            <label class="checkbox-wrapper">{{ form.appetite_normal_perh }} <span>Appetite Normal</span></label>
+            <label class="checkbox-wrapper">{{ form.appetite_redused_perh }} <span>Appetite Reduced</span></label>
+            <label class="checkbox-wrapper">{{ form.sleep_normal_perh }} <span>Sleep Normal</span></label>
+            <label class="checkbox-wrapper">{{ form.sleep_disturbed_perh }} <span>Sleep Disturbed</span></label>
+            <label class="checkbox-wrapper">{{ form.smoking_perh }} <span>Smoking</span></label>
+            <label class="checkbox-wrapper">{{ form.drinking_perh }} <span>Drinking</span></label>
+            <label class="checkbox-wrapper">{{ form.tobacco_perh }} <span>Tobacco</span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12. Spine Examination -->
+      <div class="accordion-row">
+        <div class="accordion-header">
+          <h2># Spine Examination</h2>
+        </div>
+        <div class="accordion-content">
+          <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.spe }} <span>Spine Exam Record</span></label>
+          <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.restricted_movement_spe }} <span>Restricted Movement</span></label>
+          <div class="input-wrapper">
+            <label>Spine Examination Description</label>
+            {{ form.description_spe }}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- AI summary generator block -->
+    <div class="action-section">
+      <div class="ai-controls">
+        <h3 style="margin:0; font-size:1.15rem; color: #1e293b;">AI Clinical Summary Note</h3>
+        <button type="button" class="ai-btn" id="generate-summary-btn">
+          <div class="spinner" id="ai-spinner"></div>
+          <span id="ai-btn-text">⚡ Generate AI Summary</span>
+        </button>
+      </div>
+
+      <!-- Main Summary Textarea for description_t -->
+      {{ form.description_t }}
+
+      <div class="meta-grid">
+        <div class="input-wrapper">
+          <label for="id_disease_name">Disease Name</label>
+          <input type="text" name="disease_name" id="id_disease_name" value="Rheumatoid Arthritis" placeholder="e.g. Rheumatoid Arthritis, SLE">
+        </div>
+        <div class="input-wrapper">
+          <label for="id_state">Disease State</label>
+          <select name="state" id="id_state">
+            <option value="Active" selected>Active</option>
+            <option value="Remission">Remission</option>
+            <option value="Stable">Stable</option>
+            <option value="Worsening">Worsening</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button type="button" class="cancel-btn" id="cancel-btn">Cancel</button>
+        <button type="submit" class="submit-btn">Save Rumat Diagnosis</button>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    
+    // 1. Accordion Toggle Logic
+    const accordionRows = document.querySelectorAll('.accordion-row');
+
+    accordionRows.forEach(row => {
+      const header = row.querySelector('.accordion-header');
+      const content = row.querySelector('.accordion-content');
+
+      header.addEventListener('click', function() {
+        const isActive = row.classList.contains('active');
+
+        // Close all other rows
+        accordionRows.forEach(otherRow => {
+          if (otherRow !== row) {
+            otherRow.classList.remove('active');
+            otherRow.querySelector('.accordion-content').style.display = 'none';
+          }
+        });
+
+        // Toggle current row
+        if (isActive) {
+          row.classList.remove('active');
+          content.style.display = 'none';
+        } else {
+          row.classList.add('active');
+          content.style.display = 'block';
+        }
+      });
+    });
+
+    // Replace the description textarea with summary classes
+    const descTextarea = document.querySelector('textarea[name="description_t"]');
+    if (descTextarea) {
+      descTextarea.classList.add('summary-textarea');
+      descTextarea.placeholder = 'Select the symptoms above, then click "Generate AI Summary" to create a clinical summary notes. You can edit the generated text before saving.';
+    }
+
+    // 2. AI Summary Generation Logic
+    const aiBtn = document.getElementById('generate-summary-btn');
+    const aiSpinner = document.getElementById('ai-spinner');
+    const aiBtnText = document.getElementById('ai-btn-text');
+
+    // Parse latest lab values passed from context
+    const latestLabData = JSON.parse('{{ latest_lab_data|escapejs }}' || '{}');
+
+    aiBtn.addEventListener('click', function() {
+      // Find all checked checkbox labels
+      const checkedSymptoms = [];
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+      
+      checkboxes.forEach(chk => {
+        // Find parent label element to get the label text
+        const labelText = chk.closest('label').textContent.trim();
+        checkedSymptoms.push(labelText);
+      });
+
+      // Show spinner and disable button
+      aiBtn.disabled = true;
+      aiSpinner.style.display = 'block';
+      aiBtnText.textContent = 'Analyzing Symptoms...';
+
+      // Send to API
+      fetch('/api/generate-rumat-summary/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+          symptoms: checkedSymptoms,
+          lab_markers: latestLabData
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok && data.summary) {
+          descTextarea.value = data.summary;
+          
+          // Auto fill disease name if SLE or Gout is detected
+          const summaryLower = data.summary.toLowerCase();
+          const diseaseInput = document.getElementById('id_disease_name');
+          if (summaryLower.includes('lupus') || summaryLower.includes('sle')) {
+            diseaseInput.value = 'Lupus (SLE)';
+          } else if (summaryLower.includes('gout')) {
+            diseaseInput.value = 'Gout';
+          } else if (summaryLower.includes('ankylosing')) {
+            diseaseInput.value = 'Ankylosing Spondylitis';
+          }
+        } else {
+          alert('Error generating summary: ' + (data.error || 'Unknown error'));
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Server connection error. Please try again.');
+      })
+      .finally(() => {
+        // Hide spinner and enable button
+        aiBtn.disabled = false;
+        aiSpinner.style.display = 'none';
+        aiBtnText.textContent = '⚡ Generate AI Summary';
+      });
+    });
+
+    // 3. Cancel Button Logic
+    document.getElementById('cancel-btn').addEventListener('click', function() {
+      const doctorId = '{{ doctor_id }}';
+      const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
+      window.location.href = '/doctor-dashboard/' + doctorParam;
+    });
+
+  });
+</script>
+{% endblock %}

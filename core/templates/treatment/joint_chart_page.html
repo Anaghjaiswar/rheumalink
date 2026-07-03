@@ -462,9 +462,9 @@
       </p>
 
       <div class="score-box">
-        <div class="score-tile"><span>No Pain</span><strong style="color:#7b8794;">0</strong></div>
-        <div class="score-tile"><span>Tender</span><strong style="color:#3b82f6;">1</strong></div>
-        <div class="score-tile"><span>Swollen</span><strong style="color:#ef4444;">2</strong></div>
+        <div class="score-tile"><span>No Pain</span><strong id="counter-nopain" style="color:#7b8794;">0</strong></div>
+        <div class="score-tile"><span>Tender</span><strong id="counter-tender" style="color:#3b82f6;">0</strong></div>
+        <div class="score-tile"><span>Swollen</span><strong id="counter-swollen" style="color:#ef4444;">0</strong></div>
       </div>
 
       <div style="margin-top:12px; border:1px solid var(--line); background:#fff; padding:10px;">
@@ -578,16 +578,48 @@
     if (hit) {
       hit.addEventListener('click', function () {
         cycleJoint(group, input);
+        updateCounters();
       });
 
       hit.addEventListener('keydown', function (event) {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           cycleJoint(group, input);
+          updateCounters();
         }
       });
     }
   });
+
+  function updateCounters() {
+    let noPainCount = 0;
+    let tenderCount = 0;
+    let swollenCount = 0;
+    
+    document.querySelectorAll('.joint-marker').forEach(marker => {
+      const state = normalize(marker.getAttribute('data-val'));
+      if (state === 'nopain') {
+        noPainCount++;
+      } else if (state === 'red') {
+        swollenCount++;
+      } else if (state === 'blue') {
+        tenderCount++;
+      } else if (state === 'orange') {
+        swollenCount++;
+        tenderCount++;
+      }
+    });
+    
+    const nopainEl = document.getElementById('counter-nopain');
+    const tenderEl = document.getElementById('counter-tender');
+    const swollenEl = document.getElementById('counter-swollen');
+    
+    if (nopainEl) nopainEl.textContent = noPainCount;
+    if (tenderEl) tenderEl.textContent = tenderCount;
+    if (swollenEl) swollenEl.textContent = swollenCount;
+  }
+
+  updateCounters();
 })();
 </script>
 {% endblock %}
