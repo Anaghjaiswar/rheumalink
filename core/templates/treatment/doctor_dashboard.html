@@ -376,7 +376,10 @@
       {{ diagnosis_form.as_p }}
 
       <div class="panel" style="padding:10px; margin:8px 0; background:#f8fbf4;">
-        <h3 style="margin-bottom:8px;">Joint Chart Entry</h3>
+        <h3 style="margin-bottom:8px; display: flex; justify-content: space-between; align-items: center;">
+          <span>Joint Chart Entry</span>
+          <span id="joint-status-badge" style="font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:bold; background:#f3f4f6; color:#4b5563; border: 1px solid #d1d5db;">Loading...</span>
+        </h3>
         <p style="margin:0 0 8px; font-size:0.85rem; color:var(--muted);">
           Joint chart is managed on a separate page. Create or view before saving diagnosis.
         </p>
@@ -384,19 +387,15 @@
       </div>
 
       <div class="panel" style="padding:10px; margin:8px 0; background:#f5f8fc;">
-        <h3 style="margin-bottom:8px;">Rheumat Symptoms Checklist (AI Summary)</h3>
+        <h3 style="margin-bottom:8px; display: flex; justify-content: space-between; align-items: center;">
+          <span>Rheumat Symptoms Checklist (AI Summary)</span>
+          <span id="checklist-status-badge" style="font-size:0.75rem; padding:2px 8px; border-radius:12px; font-weight:bold; background:#f3f4f6; color:#4b5563; border: 1px solid #d1d5db;">Loading...</span>
+        </h3>
         <p style="margin:0 0 8px; font-size:0.85rem; color:var(--muted);">
           Fill detailed symptoms checklist and generate professional clinical notes using AI on a separate page.
         </p>
         <button type="button" id="open-rumat-diagnosis" class="alt" style="border-color: #2563eb; color: #2563eb;">Open Rumat Diagnosis Page</button>
       </div>
-
-      <label for="rumat_mode">Rheumat Diagnosis Fill Mode</label>
-      <select name="rumat_mode" id="rumat_mode">
-        <option value="manual">Manual by Doctor</option>
-        <option value="auto">AI Prefill from Lab Report</option>
-      </select>
-      <textarea name="rumat_manual_notes" placeholder="Doctor confirmation notes for final diagnosis"></textarea>
 
       <div class="panel" style="padding:10px; margin-top:8px; background:#f8fbf4;">
         <h3 style="margin-bottom:8px;">Fast DAS28 Score</h3>
@@ -481,6 +480,75 @@ function startPatientConsultation(appointmentId, patientId, tokenNumber, patient
   
   fetchVitals(appointmentId);
   fetchMedicalInfo(patientId);
+  fetchDiagnosisStatus(appointmentId);
+}
+
+function fetchDiagnosisStatus(appointmentId) {
+  const jointBadge = document.getElementById('joint-status-badge');
+  const checklistBadge = document.getElementById('checklist-status-badge');
+  
+  if (jointBadge) {
+    jointBadge.textContent = 'Checking...';
+    jointBadge.style.background = '#f3f4f6';
+    jointBadge.style.color = '#4b5563';
+  }
+  if (checklistBadge) {
+    checklistBadge.textContent = 'Checking...';
+    checklistBadge.style.background = '#f3f4f6';
+    checklistBadge.style.color = '#4b5563';
+  }
+
+  fetch(`/api/diagnosis-status/${appointmentId}/`)
+    .then(resp => resp.json())
+    .then(data => {
+      // Update Joint Chart Status Badge
+      if (jointBadge) {
+        if (data.has_joint_chart) {
+          jointBadge.textContent = `✅ Completed (${data.joint_details})`;
+          jointBadge.style.background = '#d1fae5';
+          jointBadge.style.color = '#065f46';
+          jointBadge.style.borderColor = '#34d399';
+        } else {
+          jointBadge.textContent = '⚠️ Not Filled';
+          jointBadge.style.background = '#fef3c7';
+          jointBadge.style.color = '#92400e';
+          jointBadge.style.borderColor = '#fbbf24';
+        }
+      }
+      
+      // Update Checklist Status Badge
+      if (checklistBadge) {
+        if (data.has_rumat_checklist) {
+          checklistBadge.textContent = '✅ Completed';
+          checklistBadge.style.background = '#d1fae5';
+          checklistBadge.style.color = '#065f46';
+          checklistBadge.style.borderColor = '#34d399';
+        } else {
+          checklistBadge.textContent = '⚠️ Not Filled';
+          checklistBadge.style.background = '#fef3c7';
+          checklistBadge.style.color = '#92400e';
+          checklistBadge.style.borderColor = '#fbbf24';
+        }
+      }
+
+      // Prefill Diagnosis Form fields
+      const diseaseInput = document.getElementById('id_disease_name');
+      const stateSelect = document.getElementById('id_state');
+      const versionTextarea = document.getElementById('id_version_note');
+
+      if (diseaseInput && data.disease_name) {
+        diseaseInput.value = data.disease_name;
+      }
+      if (stateSelect && data.state) {
+        stateSelect.value = data.state;
+      }
+      if (versionTextarea && data.version_note) {
+        versionTextarea.value = data.version_note;
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching diagnosis status:', err);
+    });
 }
 
 function fetchVitals(appointmentId) {
@@ -798,6 +866,8 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(row);
     wireRows();
   });
+
+
 
   wireRows();
 })();

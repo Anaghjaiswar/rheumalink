@@ -332,7 +332,7 @@
 
   <div class="patient-summary">
     <div><span>Patient Name:</span> {{ patient.get_full_name }}</div>
-    <div><span>Sex/Age:</span> {{ patient.sex }} / {{ patient.age_display }}</div>
+    <div><span>Sex/Age:</span> {{ patient.sex }} / {{ patient.get_age }} Yrs.</div>
     <div><span>Appointment:</span> #{{ appointment.token_number }} ({{ appointment.appointment_date }})</div>
     <div><span>Consulting Doctor:</span> {{ appointment.doctor.user.get_full_name }}</div>
   </div>
@@ -710,7 +710,7 @@
     });
 
     // Replace the description textarea with summary classes
-    const descTextarea = document.querySelector('textarea[name="description_t"]');
+    const descTextarea = document.querySelector('[name="description_t"]');
     if (descTextarea) {
       descTextarea.classList.add('summary-textarea');
       descTextarea.placeholder = 'Select the symptoms above, then click "Generate AI Summary" to create a clinical summary notes. You can edit the generated text before saving.';
@@ -725,15 +725,92 @@
     const latestLabData = JSON.parse('{{ latest_lab_data|escapejs }}' || '{}');
 
     aiBtn.addEventListener('click', function() {
-      // Find all checked checkbox labels
-      const checkedSymptoms = [];
-      const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+      const findings = {};
+      const accordionRows = document.querySelectorAll('.accordion-row');
       
-      checkboxes.forEach(chk => {
-        // Find parent label element to get the label text
-        const labelText = chk.closest('label').textContent.trim();
-        checkedSymptoms.push(labelText);
+      accordionRows.forEach(row => {
+        const headerText = row.querySelector('.accordion-header h2').textContent.replace('#', '').trim();
+        const checkedList = [];
+        
+        // Find durations and text inputs if any
+        if (headerText === "Musculoskeletal Manifestations") {
+          const yrs = row.querySelector('input[name="duration_years_msm"]').value;
+          const mos = row.querySelector('input[name="duration_months_msm"]').value;
+          const days = row.querySelector('input[name="duration_days_msm"]').value;
+          let durStr = "";
+          if (yrs) durStr += `${yrs} yr `;
+          if (mos) durStr += `${mos} mo `;
+          if (days) durStr += `${days} days`;
+          durStr = durStr.trim();
+          if (durStr) checkedList.push(`Duration: ${durStr}`);
+        } else if (headerText === "Back Ache") {
+          const yrs = row.querySelector('input[name="duration_years_ba"]').value;
+          const mos = row.querySelector('input[name="duration_months_ba"]').value;
+          const days = row.querySelector('input[name="duration_days_ba"]').value;
+          let durStr = "";
+          if (yrs) durStr += `${yrs} yr `;
+          if (mos) durStr += `${mos} mo `;
+          if (days) durStr += `${days} days`;
+          durStr = durStr.trim();
+          if (durStr) checkedList.push(`Duration: ${durStr}`);
+        } else if (headerText === "Weakness") {
+          const descInput = row.querySelector('input[name="description_wk"]');
+          const desc = descInput ? descInput.value.trim() : "";
+          if (desc) checkedList.push(`Description: ${desc}`);
+        } else if (headerText === "Allergy") {
+          const dAllerInput = row.querySelector('input[name="description_drugs_allergy"]');
+          const oAllerInput = row.querySelector('input[name="description_other_allergy"]');
+          const dAller = dAllerInput ? dAllerInput.value.trim() : "";
+          const oAller = oAllerInput ? oAllerInput.value.trim() : "";
+          if (dAller) checkedList.push(`Drug Allergy: ${dAller}`);
+          if (oAller) checkedList.push(`Other Allergy: ${oAller}`);
+        } else if (headerText === "Systems") {
+          const crInput = row.querySelector('input[name="description_cardiorespiratory_sys"]');
+          const giInput = row.querySelector('input[name="description_gastrointestinal_sys"]');
+          const cnsInput = row.querySelector('input[name="description_cns_sys"]');
+          const rsInput = row.querySelector('input[name="description_rs_sys"]');
+          const cr = crInput ? crInput.value.trim() : "";
+          const gi = giInput ? giInput.value.trim() : "";
+          const cns = cnsInput ? cnsInput.value.trim() : "";
+          const rs = rsInput ? rsInput.value.trim() : "";
+          if (cr) checkedList.push(`Cardiorespiratory: ${cr}`);
+          if (gi) checkedList.push(`Gastrointestinal: ${gi}`);
+          if (cns) checkedList.push(`CNS: ${cns}`);
+          if (rs) checkedList.push(`Respiratory: ${rs}`);
+        } else if (headerText === "Obstetric History") {
+          const descInput = row.querySelector('input[name="description_oh"]');
+          const desc = descInput ? descInput.value.trim() : "";
+          if (desc) checkedList.push(`Description: ${desc}`);
+        } else if (headerText === "Spine Examination") {
+          const descInput = row.querySelector('input[name="description_spe"]');
+          const desc = descInput ? descInput.value.trim() : "";
+          if (desc) checkedList.push(`Description: ${desc}`);
+        }
+        
+        // Find checked checkboxes in this row
+        const checkboxes = row.querySelectorAll('input[type="checkbox"]:checked');
+        checkboxes.forEach(chk => {
+          const labelText = chk.closest('label').textContent.trim();
+          checkedList.push(labelText);
+        });
+        
+        if (checkedList.length > 0) {
+          findings[headerText] = checkedList;
+        }
       });
+
+      // Append lab markers if any
+      if (latestLabData && Object.keys(latestLabData).length > 0) {
+        const labList = [];
+        for (const [k, v] of Object.entries(latestLabData)) {
+          if (v && v.value) {
+            labList.push(`${k}: ${v.value} ${v.unit || ''}`);
+          }
+        }
+        if (labList.length > 0) {
+          findings["Lab Markers"] = labList;
+        }
+      }
 
       // Show spinner and disable button
       aiBtn.disabled = true;
@@ -741,39 +818,55 @@
       aiBtnText.textContent = 'Analyzing Symptoms...';
 
       // Send to API
-      fetch('/api/generate-rumat-summary/', {
+      fetch('/api/generate-rumat-summary/{{ appointment.id }}/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         },
         body: JSON.stringify({
-          symptoms: checkedSymptoms,
-          lab_markers: latestLabData
+          findings: findings
         })
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.ok && data.summary) {
-          descTextarea.value = data.summary;
-          
-          // Auto fill disease name if SLE or Gout is detected
-          const summaryLower = data.summary.toLowerCase();
-          const diseaseInput = document.getElementById('id_disease_name');
-          if (summaryLower.includes('lupus') || summaryLower.includes('sle')) {
-            diseaseInput.value = 'Lupus (SLE)';
-          } else if (summaryLower.includes('gout')) {
-            diseaseInput.value = 'Gout';
-          } else if (summaryLower.includes('ankylosing')) {
-            diseaseInput.value = 'Ankylosing Spondylitis';
-          }
-        } else {
-          alert('Error generating summary: ' + (data.error || 'Unknown error'));
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
         }
+        // Clear textarea to prepare for stream
+        descTextarea.value = "";
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        function readStream() {
+          return reader.read().then(({ done, value }) => {
+            if (done) {
+              // Once streaming completes, run clinical disease auto-fill checks
+              const summaryText = descTextarea.value;
+              const summaryLower = summaryText.toLowerCase();
+              const diseaseInput = document.getElementById('id_disease_name');
+              if (summaryLower.includes('lupus') || summaryLower.includes('sle')) {
+                diseaseInput.value = 'Lupus (SLE)';
+              } else if (summaryLower.includes('gout')) {
+                diseaseInput.value = 'Gout';
+              } else if (summaryLower.includes('ankylosing')) {
+                diseaseInput.value = 'Ankylosing Spondylitis';
+              }
+              return;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            descTextarea.value += chunk;
+            descTextarea.scrollTop = descTextarea.scrollHeight; // Scroll to bottom
+
+            return readStream();
+          });
+        }
+        return readStream();
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Server connection error. Please try again.');
+        alert('Server connection error or invalid request. Please try again.');
       })
       .finally(() => {
         // Hide spinner and enable button

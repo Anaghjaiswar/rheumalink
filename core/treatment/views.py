@@ -11,6 +11,9 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from django.views.decorators.csrf import csrf_exempt
+import requests
+
 
 from doctor.models import Doctor
 from patient.models import Comorbidity, FileRecord, PatientMedicalInfo, PatientProfile
@@ -334,7 +337,9 @@ def doctor_dashboard(request):
 			if not consultation:
 				consultation = Consultation.objects.create(patient=appointment.patient, appointment=appointment)
 
-			diagnosis_form = PatientDiagnosisForm(request.POST)
+			# Fetch existing diagnosis for this consultation to avoid duplicates
+			existing_diag = PatientDiagnosis.objects.filter(consultation_link=consultation).first()
+			diagnosis_form = PatientDiagnosisForm(request.POST, instance=existing_diag)
 
 			if diagnosis_form.is_valid():
 				joint_record = (
@@ -343,23 +348,12 @@ def doctor_dashboard(request):
 					.first()
 				)
 
-				rumat_mode = request.POST.get("rumat_mode", "manual")
-				if rumat_mode == "auto":
-					latest_lab = (
-						LabResult.objects.filter(patient=appointment.patient)
-						.exclude(test_data={})
-						.first()
-					)
-					summary = f"AI prefill from latest lab: {latest_lab.test_data}" if latest_lab else "No structured lab data found."
-					rumat_diagnosis = RumatDiagnosis.objects.create(
-						patient_link=appointment.patient,
-						description_t=summary,
-					)
-				else:
-					rumat_diagnosis = RumatDiagnosis.objects.create(
-						patient_link=appointment.patient,
-						description_t=request.POST.get("rumat_manual_notes", ""),
-					)
+				# Fetch latest symptoms checklist if any exists
+				rumat_diagnosis = (
+					RumatDiagnosis.objects.filter(patient_link=appointment.patient)
+					.order_by("-id")
+					.first()
+				)
 
 				diagnosis = diagnosis_form.save(commit=False)
 				diagnosis.patient_link = appointment.patient
@@ -583,6 +577,57 @@ def das28_score(request, appointment_id):
 	return JsonResponse(data)
 
 
+def get_diagnosis_status(request, appointment_id):
+	appointment = get_object_or_404(Appointment, id=appointment_id)
+	patient = appointment.patient
+	
+	# Fetch latest joint chart
+	joint = jointspain.objects.filter(patient_link=patient).order_by("-date_of_assessment").first()
+	has_joint_chart = False
+	joint_details = "Not filled yet"
+	if joint:
+		has_joint_chart = True
+		swollen = 0
+		tender = 0
+		for field in joint._meta.fields:
+			name = field.name
+			if name in {"id", "date_of_assessment", "patient_link"}:
+				continue
+			val = getattr(joint, name)
+			if val == "red":
+				swollen += 1
+			elif val == "blue":
+				tender += 1
+			elif val == "orange":
+				swollen += 1
+				tender += 1
+		joint_details = f"{swollen} Swollen, {tender} Tender"
+
+	# Fetch latest symptoms checklist
+	rumat = RumatDiagnosis.objects.filter(patient_link=patient).order_by("-id").first()
+	has_rumat_checklist = False
+	rumat_summary = ""
+	if rumat:
+		has_rumat_checklist = True
+		rumat_summary = rumat.description_t or ""
+
+	# Check if PatientDiagnosis already exists for this consultation
+	consultation = Consultation.objects.filter(appointment=appointment).first()
+	existing_diag = None
+	if consultation:
+		existing_diag = PatientDiagnosis.objects.filter(consultation_link=consultation).first()
+
+	return JsonResponse({
+		"has_joint_chart": has_joint_chart,
+		"joint_details": joint_details,
+		"has_rumat_checklist": has_rumat_checklist,
+		"rumat_summary": rumat_summary,
+		"disease_name": existing_diag.disease_name if existing_diag else "",
+		"state": existing_diag.state if existing_diag else "Active",
+		"version_note": existing_diag.version_note if existing_diag else "",
+	})
+
+
 def get_patient_medical_info(request, patient_id):
 	patient = get_object_or_404(PatientProfile, id=patient_id)
 	medical_info = PatientMedicalInfo.objects.filter(patient=patient).first()
@@ -683,8 +728,6 @@ def rumat_diagnosis_page(request, appointment_id):
 				patient_diag.state = request.POST.get("state")
 			if request.POST.get("version_note"):
 				patient_diag.version_note = request.POST.get("version_note")
-			else:
-				patient_diag.version_note = rumat_diag.description_t or ""
 
 			patient_diag.save()
 			messages.success(request, "Rheumat Diagnosis saved successfully.")
@@ -714,66 +757,65 @@ def rumat_diagnosis_page(request, appointment_id):
 	return render(request, "treatment/rumat_diagnosis_page.html", context)
 
 
-from django.views.decorators.csrf import csrf_exempt
-import requests
 
 @csrf_exempt
-def generate_rumat_summary(request):
+def generate_rumat_summary(request, appointment_id):
 	if request.method != "POST":
+		from django.http import JsonResponse
 		return JsonResponse({"error": "Only POST requests allowed"}, status=405)
 
 	try:
 		import json
+		from django.http import StreamingHttpResponse, JsonResponse
 		from clinic.models import ClinicSettings
 		
-		body = json.loads(request.body)
-		symptoms = body.get("symptoms", [])
-		lab_markers = body.get("lab_markers", {})
+		appointment = get_object_or_404(Appointment.objects.select_related("patient"), id=appointment_id)
+		patient = appointment.patient
 		
-		prompt = (
-			"Write a concise clinical summary (2-3 sentences) for a patient with the following clinical findings:\n"
-			f"Symptoms: {', '.join(symptoms) if symptoms else 'None reported'}\n"
-			f"Lab Markers: {', '.join([f'{k}: {v}' for k, v in lab_markers.items()]) if lab_markers else 'None'}\n"
-			"Format the output as a professional medical note."
-		)
+		body = json.loads(request.body)
+		findings = body.get("findings", {})
+
+		# Retrieve clean data directly from DB
+		age = patient.get_age()
+		sex = patient.sex
+		sex_str = "male" if sex == "M" else "female"
 
 		settings = ClinicSettings.objects.first()
-		summary = None
 
-		if settings and settings.is_ai_enabled:
-			try:
-				# Try local Ollama endpoint first
-				ollama_url = "http://127.0.0.1:11434/api/generate"
-				payload = {
-					"model": "qwen2.5:7b",
-					"prompt": prompt,
-					"stream": False,
-					"options": {
-						"temperature": 0.0
-					}
-				}
-				response = requests.post(ollama_url, json=payload, timeout=8)
-				if response.status_code == 200:
-					summary = response.json().get("response", "").strip()
-			except Exception:
-				pass
+		if not settings or not settings.is_ai_enabled:
+			def stream_unsubscribed():
+				yield "⚠️ AI Summary Service is not active. Please subscribe to enable this feature."
+			return StreamingHttpResponse(stream_unsubscribed(), content_type="text/plain")
 
-		if not summary:
-			# Highly realistic clinical template fallback
-			parts = []
-			if symptoms:
-				parts.append(f"Patient presents with a clinical history positive for {', '.join(symptoms).lower()}.")
+		try:
+			# Call actual AI Service configured in sample.py on port 8001 (Streaming)
+			AI_URL = "http://ai_service:8001/v1/rumat-summary"
+			headers = {
+				"X-Clinic-Key": settings.api_access_token,
+				"Content-Type": "application/json"
+			}
+			payload = {
+				"age": age,
+				"sex": sex_str,
+				"findings": findings
+			}
+			response = requests.post(AI_URL, json=payload, headers=headers, timeout=15, stream=True)
+			if response.status_code == 200:
+				def stream_response():
+					for chunk in response.iter_content(chunk_size=512, decode_unicode=True):
+						if chunk:
+							yield chunk
+				return StreamingHttpResponse(stream_response(), content_type="text/plain")
 			else:
-				parts.append("Patient denies active systemic or localized symptoms upon clinical evaluation.")
-			
-			if lab_markers:
-				m_strs = [f"{k} of {v}" for k, v in lab_markers.items()]
-				parts.append(f"Recent laboratory evaluation indicates {', '.join(m_strs)}.")
-			
-			parts.append("Findings are consistent with chronic inflammatory disease activity. Close clinical monitoring is indicated.")
-			summary = " ".join(parts)
+				def stream_api_error():
+					yield f"⚠️ AI Service returned error {response.status_code}. Please contact support."
+				return StreamingHttpResponse(stream_api_error(), content_type="text/plain")
+		except Exception:
+			def stream_conn_error():
+				yield "⚠️ AI Service is temporarily unreachable. Please check your connection and try again."
+			return StreamingHttpResponse(stream_conn_error(), content_type="text/plain")
 
-		return JsonResponse({"ok": True, "summary": summary})
 	except Exception as e:
-		return JsonResponse({"ok": False, "error": str(e)}, status=500)
+		from django.http import JsonResponse
+		return JsonResponse({"error": str(e)}, status=500)
 

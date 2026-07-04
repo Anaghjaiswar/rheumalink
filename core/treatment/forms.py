@@ -163,4 +163,7 @@ class RumatDiagnosisForm(forms.ModelForm):
         model = RumatDiagnosis
         fields = "__all__"
         exclude = ["patient_link"]
+        widgets = {
+            "description_t": forms.Textarea(attrs={"rows": 4}),
+        }
 

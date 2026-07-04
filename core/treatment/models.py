@@ -423,7 +423,7 @@ class RumatDiagnosis(models.Model):
     description_spe = models.CharField(max_length=255, verbose_name="Description_spe",null=True,blank=True)
 
     #==============================================================================================================#
-    description_t =  models.CharField(max_length=1028, verbose_name="Description_total",null=True,blank=True)
+    description_t = models.TextField(verbose_name="Description_total", null=True, blank=True)
     
     class Meta:
         verbose_name = "RumatDiagnosis"
