@@ -107,7 +107,7 @@ class ConsultationForm(forms.ModelForm):
 class PrescriptionForm(forms.ModelForm):
     class Meta:
         model = Prescription
-        fields = ["lab_investigations", "advice_notes", "next_followup_date"]
+        fields = ["lab_investigations", "prescribed_tests", "advice_notes", "next_followup_date"]
         widgets = {
             "lab_investigations": forms.Textarea(attrs={"rows": 2}),
             "advice_notes": forms.Textarea(attrs={"rows": 2}),

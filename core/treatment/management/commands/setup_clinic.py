@@ -1,12 +1,12 @@
 from django.core.management.base import BaseCommand
 from patient.models import Comorbidity
-from treatment.models import Medicine
+from treatment.models import Medicine, LabTest
 import logging
 
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Seeds the database with initial comorbidities and rheumatology medicines'
+    help = 'Seeds the database with initial comorbidities, rheumatology medicines, and lab tests'
 
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.SUCCESS('--- Starting Clinic Setup ---'))
@@ -67,5 +67,34 @@ class Command(BaseCommand):
             )
             if created:
                 self.stdout.write(f"Added Medicine: {m_name}")
+
+        # 3. Seed Lab Tests
+        lab_tests = [
+            ("Complete Blood Count (CBC)", True),
+            ("Erythrocyte Sedimentation Rate (ESR)", True),
+            ("C-Reactive Protein (CRP)", True),
+            ("Rheumatoid Factor (RF) Quantitative", True),
+            ("Anti-CCP (Cyclic Citrullinated Peptide)", True),
+            ("ANA (Antinuclear Antibody) by IFA", True),
+            ("HLA-B27 by PCR", True),
+            ("Serum Uric Acid", True),
+            ("Anti-dsDNA", False),
+            ("ENA (Extractable Nuclear Antigen) Profile", False),
+            ("Liver Function Test (LFT)", False),
+            ("Kidney Function Test (KFT)", False),
+            ("Thyroid Profile (T3, T4, TSH)", False),
+            ("Vitamin D3 (25-Hydroxy)", False),
+            ("Vitamin B12", False),
+            ("Urine Routine & Microscopy", False),
+            ("ASO Titre", False),
+        ]
+
+        for name, is_common in lab_tests:
+            obj, created = LabTest.objects.get_or_create(
+                name=name,
+                defaults={'is_common': is_common}
+            )
+            if created:
+                self.stdout.write(f"Added Lab Test: {name}")
 
         self.stdout.write(self.style.SUCCESS('--- Clinic Setup Complete ---'))

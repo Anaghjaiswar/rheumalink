@@ -181,6 +181,20 @@ class Consultation(models.Model):
         return f"Consultation - {self.patient.get_full_name()} ({self.created_at.date()})"
 
 
+class LabTest(models.Model):
+    name = models.CharField(max_length=255, unique=True, verbose_name="Test Name")
+    is_common = models.BooleanField(default=False, verbose_name="Is Common Test")
+    description = models.TextField(blank=True, null=True, verbose_name="Description")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Lab Test"
+        verbose_name_plural = "Lab Tests"
+
+
 def prescription_upload_path(instance, filename):
     # NOTE:Files will be saved to: media/prescriptions/YYYY/MM/filename
     return f"prescriptions/{instance.consultation.created_at.year}/{instance.consultation.created_at.month}/{filename}"
@@ -192,6 +206,7 @@ class Prescription(models.Model):
         related_name="prescription", verbose_name="Consultation"
     )
     lab_investigations = models.TextField(blank=True, null=True, verbose_name="Lab Tests")
+    prescribed_tests = models.ManyToManyField(LabTest, blank=True, related_name="prescriptions", verbose_name="Prescribed Tests")
     advice_notes = models.TextField(blank=True, null=True, verbose_name="General Advice")
     next_followup_date = models.DateField(blank=True, null=True)
     prescription_pdf = models.FileField(

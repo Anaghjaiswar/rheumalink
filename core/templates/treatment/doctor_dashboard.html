@@ -334,7 +334,59 @@
       </select>
 
       {{ consult_form.as_p }}
-      {{ prescription_form.as_p }}
+
+      <!-- Advice Notes -->
+      <p>
+        <label for="id_advice_notes">General Advice:</label>
+        <textarea name="advice_notes" id="id_advice_notes" rows="2" placeholder="General advice for patient" style="width:100%;"></textarea>
+      </p>
+
+      <!-- Standard Lab Tests Section -->
+      <div class="panel" style="padding:15px; margin:16px 0; border: 1px solid #d1d5db; background:#f9fafb; border-radius:8px;">
+        <h3 style="margin-bottom:12px; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
+          🧪 Prescribe Lab Tests
+        </h3>
+        
+        <!-- Common Test Checkboxes -->
+        <p style="margin: 0 0 8px; font-weight:bold; font-size:0.85rem; color:#4b5563;">Common Tests:</p>
+        <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:8px; margin-bottom:14px;">
+          {% for test in common_tests %}
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.9rem; cursor:pointer;">
+              <input type="checkbox" name="prescribed_tests" value="{{ test.id }}" style="width: 16px; height: 16px; min-width: 16px; margin: 0; flex-shrink: 0; cursor: pointer;">
+              <span>{{ test.name }}</span>
+            </label>
+          {% endfor %}
+        </div>
+
+        <!-- Custom Test Auto-Suggest Search -->
+        <p style="margin: 0 0 6px; font-weight:bold; font-size:0.85rem; color:#4b5563;">Search & Add Other Tests:</p>
+        <div style="position:relative; margin-bottom:10px;">
+          <input type="text" id="labtest-search" placeholder="Type to search and add tests (e.g., Vitamin D, HLA-B27)..." style="width:100%;">
+          <div id="labtest-suggestions" style="position:absolute; width:100%; max-height:200px; overflow-y:auto; background:#fff; border:1px solid #ccc; border-radius:4px; z-index:1000; display:none; box-shadow:0 4px 6px rgba(0,0,0,0.1);"></div>
+        </div>
+
+        <!-- Selected Custom Tests List -->
+        <div id="selected-labtests-list" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;"></div>
+      </div>
+
+      <!-- Lab Investigations Free Text Notes -->
+      <p>
+        <label for="id_lab_investigations">Other/Custom Lab Notes:</label>
+        <textarea name="lab_investigations" id="id_lab_investigations" rows="2" placeholder="Any additional lab instructions or custom tests..." style="width:100%;"></textarea>
+      </p>
+
+      <!-- Next Follow-up Date -->
+      <p>
+        <label for="id_next_followup_date">Next Follow-up Date:</label>
+        <input type="date" name="next_followup_date" id="id_next_followup_date" style="width:100%;">
+        <span style="display: block; margin-top: 4px; font-size: 0.85rem;">
+          <a href="#" onclick="setFollowupDate(7); return false;" style="margin-right: 12px; font-weight: bold;">1 Week</a>
+          <a href="#" onclick="setFollowupDate(14); return false;" style="margin-right: 12px; font-weight: bold;">2 Weeks</a>
+          <a href="#" onclick="setFollowupDate(30); return false;" style="margin-right: 12px; font-weight: bold;">1 Month</a>
+          <a href="#" onclick="setFollowupDate(60); return false;" style="margin-right: 12px; font-weight: bold;">2 Months</a>
+          <a href="#" onclick="setFollowupDate(90); return false;" style="font-weight: bold;">3 Months</a>
+        </span>
+      </p>
 
       <div id="medicine-rows">
         <div class="grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 6px;">
@@ -868,6 +920,106 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
+
+  // Lab Tests Auto-Suggest Logic
+  const labSearch = document.getElementById('labtest-search');
+  const labSuggestions = document.getElementById('labtest-suggestions');
+  const selectedTestsList = document.getElementById('selected-labtests-list');
+
+  if (labSearch) {
+    labSearch.addEventListener('input', function () {
+      const q = labSearch.value.trim();
+      if (q.length < 2) {
+        labSuggestions.style.display = 'none';
+        return;
+      }
+
+      fetch(`/api/labtest-autosuggest/?q=${encodeURIComponent(q)}`)
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+          if (!data.results.length) {
+            labSuggestions.style.display = 'none';
+            return;
+          }
+          labSuggestions.innerHTML = '';
+          data.results.forEach(function (test) {
+            const item = document.createElement('div');
+            item.textContent = test.name;
+            item.style.padding = '8px 12px';
+            item.style.cursor = 'pointer';
+            item.style.borderBottom = '1px solid #f3f4f6';
+            item.addEventListener('click', function () {
+              addLabTestBadge(test.id, test.name);
+              labSearch.value = '';
+              labSuggestions.style.display = 'none';
+            });
+            labSuggestions.appendChild(item);
+          });
+          labSuggestions.style.display = 'block';
+        })
+        .catch(function (err) { console.error(err); });
+    });
+
+    // Close suggestions if clicked outside
+    document.addEventListener('click', function (e) {
+      if (e.target !== labSearch && e.target !== labSuggestions) {
+        labSuggestions.style.display = 'none';
+      }
+    });
+  }
+
+  function addLabTestBadge(id, name) {
+    // Check if already selected (either by checkbox or badge)
+    const existingCheckbox = document.querySelector(`input[name="prescribed_tests"][value="${id}"]`);
+    if (existingCheckbox) {
+      existingCheckbox.checked = true;
+      return;
+    }
+
+    const existingBadge = document.querySelector(`.labtest-badge[data-id="${id}"]`);
+    if (existingBadge) return;
+
+    const badge = document.createElement('div');
+    badge.className = 'labtest-badge';
+    badge.setAttribute('data-id', id);
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    badge.style.gap = '6px';
+    badge.style.background = '#e0f2fe';
+    badge.style.color = '#0369a1';
+    badge.style.padding = '4px 10px';
+    badge.style.borderRadius = '16px';
+    badge.style.fontSize = '0.85rem';
+    badge.style.fontWeight = '500';
+    badge.style.margin = '4px';
+
+    badge.innerHTML = `
+      <span>${name}</span>
+      <span class="remove-btn" style="cursor:pointer; font-weight:bold; font-size:1rem; color:#ef4444;">&times;</span>
+      <input type="hidden" name="prescribed_tests" value="${id}">
+    `;
+
+    badge.querySelector('.remove-btn').addEventListener('click', function () {
+      badge.remove();
+    });
+
+    selectedTestsList.appendChild(badge);
+  }
+
+  window.setFollowupDate = function (days) {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + days);
+    
+    const year = targetDate.getFullYear();
+    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const date = String(targetDate.getDate()).padStart(2, '0');
+    
+    const dateStr = `${year}-${month}-${date}`;
+    const input = document.getElementById('id_next_followup_date');
+    if (input) {
+      input.value = dateStr;
+    }
+  };
 
   wireRows();
 })();

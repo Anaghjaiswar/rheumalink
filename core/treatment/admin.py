@@ -9,7 +9,15 @@ from .models import (
 	RumatDiagnosis,
 	Vitals,
 	jointspain,
+	LabTest,
 )
+
+
+@admin.register(LabTest)
+class LabTestAdmin(admin.ModelAdmin):
+	list_display = ("id", "name", "is_common")
+	list_filter = ("is_common",)
+	search_fields = ("name",)
 
 
 class PrescriptionItemInline(admin.TabularInline):

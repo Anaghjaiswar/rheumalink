@@ -8,18 +8,7 @@ can get structured data from that lab report and save it to database.
 
 
 
- ### 1. Enable Voice Dictation (Speech-to-Text) — Highly Recommended                                            
-                                                                                                                 
-  Yes, we should absolutely enable voice typing!                                                                 
-                                                                                                                 
-  • How it works: We can use the browser's native Web Speech API ( webkitSpeechRecognition ). It runs entirely on
-  the client side.                                                                                               
-  • Cost: $0 (100% Free). It does not require any paid external APIs (like OpenAI Whisper) because Chrome, Edge, 
-  and Safari have speech recognition built directly into the browser.                                            
-  • Implementation: We would place a small microphone icon next to larger text fields (like Reason for Visit or  
-  Medical Info Notes). The compounder clicks it, speaks, and the text is automatically typed in. This is much    
-  faster than typing long clinical complaints.                                                                   
-  ──────                                                                                                         
+                                                                                                    
   ### 2. Auto-Extract Appointments from WhatsApp Texts                                                           
                                                                                                                  
   Since you already have a WhatsApp webhook active, patients will send texts like "Hi, I want to book an         

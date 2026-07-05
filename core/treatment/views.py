@@ -32,7 +32,7 @@ from .forms import (
 	VitalsForm,
 	RumatDiagnosisForm,
 )
-from .models import Appointment, Consultation, LabResult, Medicine, Prescription, PrescriptionItem, RumatDiagnosis, Vitals, jointspain
+from .models import Appointment, Consultation, LabResult, Medicine, Prescription, PrescriptionItem, RumatDiagnosis, Vitals, jointspain, LabTest
 from .services import RheumaAnalyticsService
 from .tasks import process_lab_report_task
 
@@ -110,7 +110,12 @@ def _generate_prescription_pdf(prescription):
 	pdf.setFont("Helvetica", 10)
 	pdf.drawString(40, y, (prescription.advice_notes or "-")[:120])
 	y -= 18
-	pdf.drawString(40, y, f"Lab Investigations: {(prescription.lab_investigations or '-')[:95]}")
+	tests_list = [t.name for t in prescription.prescribed_tests.all()]
+	if prescription.lab_investigations:
+		tests_list.append(prescription.lab_investigations)
+	tests_str = ", ".join(tests_list) if tests_list else "-"
+
+	pdf.drawString(40, y, f"Lab Investigations: {tests_str[:95]}")
 	y -= 18
 	pdf.drawString(40, y, f"Next Follow-up: {prescription.next_followup_date or '-'}")
 
@@ -294,6 +299,10 @@ def doctor_dashboard(request):
 				prescription = prescription_form.save(commit=False)
 				prescription.consultation = consultation
 				prescription.save()
+				
+				# Save many-to-many relationship of prescribed tests
+				test_ids = request.POST.getlist("prescribed_tests")
+				prescription.prescribed_tests.set(test_ids)
 
 				medicine_ids = request.POST.getlist("medicine")
 				dosages = request.POST.getlist("dosage")
@@ -431,6 +440,7 @@ def doctor_dashboard(request):
 		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:20],
 		"lab_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:20],
 		"search_results": search_results,
+		"common_tests": LabTest.objects.filter(is_common=True),
 	}
 	return render(request, "treatment/doctor_dashboard.html", context)
 
@@ -568,6 +578,22 @@ def medicine_autosuggest(request):
 		.values("id", "medicine_name", "generic_name", "strength", "form")[:10]
 	)
 	results = list(medicines)
+	cache.set(cache_key, results, timeout=60 * 10)
+	return JsonResponse({"results": results})
+
+
+def labtest_autosuggest(request):
+	q = (request.GET.get("q") or "").strip()
+	if len(q) < 2:
+		return JsonResponse({"results": []})
+
+	cache_key = f"labtest_suggest::{q.lower()}"
+	cached = cache.get(cache_key)
+	if cached is not None:
+		return JsonResponse({"results": cached})
+
+	tests = LabTest.objects.filter(name__icontains=q).values("id", "name")[:10]
+	results = list(tests)
 	cache.set(cache_key, results, timeout=60 * 10)
 	return JsonResponse({"results": results})
 
