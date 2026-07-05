@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Prescription Report</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        @page {
+            size: A4;
+            margin: 20mm 15mm 20mm 15mm;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #0f172a;
+            margin: 0;
+            padding: 0;
+            font-size: 10pt;
+            line-height: 1.5;
+            background-color: #ffffff;
+        }
+
+        /* Header Style */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .clinic-name {
+            font-size: 18pt;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin: 0 0 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .clinic-info {
+            font-size: 9pt;
+            color: #475569;
+            margin: 2px 0;
+        }
+        
+        .doc-info-block {
+            text-align: right;
+            font-size: 9pt;
+            color: #475569;
+        }
+        
+        .doc-name {
+            font-size: 12pt;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0 0 4px 0;
+        }
+        
+        .doc-spec {
+            font-weight: 600;
+            color: #3b82f6;
+            margin: 0 0 4px 0;
+        }
+
+        /* Patient details grid */
+        .patient-grid {
+            width: 100%;
+            border-collapse: collapse;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 25px;
+        }
+        
+        .patient-grid td {
+            padding: 8px 12px;
+            font-size: 9.5pt;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .grid-label {
+            font-weight: 600;
+            color: #475569;
+            width: 18%;
+        }
+        
+        .grid-val {
+            color: #0f172a;
+            width: 32%;
+        }
+
+        /* Section styles */
+        .section-title {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1e3a8a;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .section-content {
+            font-size: 9.5pt;
+            color: #334155;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+
+        /* Table styles */
+        .med-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .med-table th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 9pt;
+            border-bottom: 2px solid #cbd5e1;
+            text-transform: uppercase;
+        }
+        
+        .med-table td {
+            padding: 10px;
+            font-size: 9.5pt;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .med-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        /* Badge/Pill style */
+        .badge-container {
+            margin-top: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 8.5pt;
+            font-weight: 500;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        /* Footer / Signature */
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 50px;
+        }
+        
+        .sig-line {
+            width: 200px;
+            border-bottom: 1px solid #94a3b8;
+            margin-bottom: 6px;
+        }
+        
+        .sig-text {
+            font-size: 9pt;
+            color: #64748b;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Letterhead Header -->
+    <table class="header-table">
+        <tr>
+            <td style="vertical-align: top; width: 60%;">
+                <h1 class="clinic-name">{{ clinic.name }}</h1>
+                <div class="clinic-info">{{ clinic.address.line1 }}{% if clinic.address.line2 %}, {{ clinic.address.line2 }}{% endif %}</div>
+                <div class="clinic-info">{{ clinic.address.city }}, {{ clinic.address.state }} - {{ clinic.address.zip_code }}</div>
+                <div class="clinic-info">Phone: {{ clinic.contact_number }} | Email: {{ clinic.contact_email }}</div>
+            </td>
+            <td style="vertical-align: top; width: 40%; text-align: right;">
+                <div class="doc-info-block">
+                    <h2 class="doc-name">Dr. {{ doctor.name }}</h2>
+                    <div class="doc-spec">{{ doctor.specialization }}</div>
+                    <div class="clinic-info">{{ doctor.highest_qualification }}</div>
+                    <div class="clinic-info">Contact: {{ doctor.contact_no }}</div>
+                    <div class="clinic-info">Email: {{ doctor.email }}</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Patient Metadata Grid -->
+    <table class="patient-grid">
+        <tr>
+            <td class="grid-label">Patient Name:</td>
+            <td class="grid-val"><strong>{{ patient.get_full_name }}</strong></td>
+            <td class="grid-label">Consult Date:</td>
+            <td class="grid-val">{{ consultation.created_at|date:"d-m-Y" }}</td>
+        </tr>
+        <tr>
+            <td class="grid-label">Age / Sex:</td>
+            <td class="grid-val">{{ patient.get_age }} Yrs / {{ patient.get_sex_display }}</td>
+            <td class="grid-label">File Number:</td>
+            <td class="grid-val">{{ file_number }}</td>
+        </tr>
+        <tr>
+            <td class="grid-label">Contact No:</td>
+            <td class="grid-val">{{ patient.contact_no }}</td>
+            <td class="grid-label">Consult ID:</td>
+            <td class="grid-val">#{{ consultation.id }}</td>
+        </tr>
+        <tr>
+            <td class="grid-label">Patient Email:</td>
+            <td class="grid-val">{{ patient.email|default:"-" }}</td>
+            <td class="grid-label">Follow-up Date:</td>
+            <td class="grid-val"><strong>{% if prescription.next_followup_date %}{{ prescription.next_followup_date|date:"d-m-Y" }}{% else %}-{% endif %}</strong></td>
+        </tr>
+    </table>
+
+    <!-- Clinical Notes Sections -->
+    {% if consultation.chief_complaints %}
+    <div class="section-title">Chief Complaints</div>
+    <div class="section-content">{{ consultation.chief_complaints }}</div>
+    {% endif %}
+
+    {% if consultation.clinical_findings %}
+    <div class="section-title">Clinical Findings</div>
+    <div class="section-content">{{ consultation.clinical_findings }}</div>
+    {% endif %}
+
+    {% if consultation.provisional_diagnosis %}
+    <div class="section-title">Provisional Diagnosis</div>
+    <div class="section-content">{{ consultation.provisional_diagnosis }}</div>
+    {% endif %}
+
+    <!-- Medications -->
+    <div class="section-title">Prescribed Medications</div>
+    <table class="med-table">
+        <thead>
+            <tr>
+                <th style="width: 35%;">Medicine Name</th>
+                <th style="width: 15%;">Dosage</th>
+                <th style="width: 15%;">Duration</th>
+                <th style="width: 35%;">Instructions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in prescription_items %}
+            <tr>
+                <td class="med-name">{{ item.medicine.medicine_name }}</td>
+                <td>{{ item.dosage|default:"-" }}</td>
+                <td>{{ item.duration|default:"-" }}</td>
+                <td style="font-style: italic; color: #475569;">{{ item.instructions|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center; color: #64748b; font-style: italic; padding: 15px;">No medications prescribed</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Investigations & Advice -->
+    {% if prescribed_tests or prescription.lab_investigations %}
+    <div class="section-title">Prescribed Investigations</div>
+    <div class="badge-container">
+        {% for test in prescribed_tests %}
+        <span class="badge">{{ test.name }}</span>
+        {% endfor %}
+    </div>
+    {% if prescription.lab_investigations %}
+    <div style="font-size: 9.5pt; color: #334155; margin-bottom: 15px;">
+        <strong>Other Lab/Imaging Notes:</strong> {{ prescription.lab_investigations }}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if prescription.advice_notes %}
+    <div class="section-title">General Advice</div>
+    <div class="section-content">{{ prescription.advice_notes }}</div>
+    {% endif %}
+
+    <!-- Footer & Signature Block -->
+    <table class="footer-table">
+        <tr>
+            <td style="width: 60%; vertical-align: bottom;">
+                <div style="font-size: 8pt; color: #94a3b8;">Generated via RheumaLink Digital Assistant</div>
+            </td>
+            <td style="width: 40%; text-align: right; vertical-align: bottom;">
+                <div style="display: inline-block; text-align: left;">
+                    <div class="sig-line"></div>
+                    <div class="sig-text">Dr. {{ doctor.name }}</div>
+                    <div style="font-size: 8pt; color: #94a3b8;">Attending Rheumatologist</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>

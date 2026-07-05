@@ -1525,6 +1525,19 @@ document.addEventListener('DOMContentLoaded', () => {
       bar.style.backgroundColor = 'rgba(25, 93, 60, 0.2)';
     });
   }
+
+  // Auto-download prescription PDF if query parameter is present
+  const urlParams = new URLSearchParams(window.location.search);
+  const downloadRxId = urlParams.get('download_rx_id');
+  if (downloadRxId) {
+    const pdfUrl = `/api/prescription/${downloadRxId}/pdf/`;
+    window.open(pdfUrl, '_blank');
+    
+    // Clean up the URL to remove the parameter so it doesn't trigger again on refresh
+    const cleanSearch = window.location.search.replace(/[\?&]download_rx_id=\d+/, '').replace(/^&/, '?');
+    const newUrl = window.location.pathname + cleanSearch;
+    window.history.replaceState({}, document.title, newUrl);
+  }
 })();
 </script>
 {% endblock %}

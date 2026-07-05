@@ -58,70 +58,48 @@ def _broadcast_queue_update(doctor_id=None):
 
 
 def _generate_prescription_pdf(prescription):
-	"""Creates a light-weight PDF so doctor can share immediately after consult save."""
-	buffer = BytesIO()
-	pdf = canvas.Canvas(buffer, pagesize=A4)
-	w, h = A4
-
-	patient = prescription.consultation.patient
+	"""Generates prescription PDF using the central Gotenberg HTML-to-PDF engine."""
+	from django.template.loader import render_to_string
+	from clinic.models import ClinicSettings
+	import requests
+	
+	clinic = ClinicSettings.objects.first()
 	consultation = prescription.consultation
-
-	y = h - 50
-	pdf.setFont("Helvetica-Bold", 16)
-	pdf.drawString(40, y, "RheumaLink Prescription")
-	y -= 30
-
-	pdf.setFont("Helvetica", 11)
-	pdf.drawString(40, y, f"Patient: {patient.get_full_name()}")
-	y -= 18
-	pdf.drawString(40, y, f"Date: {consultation.created_at.date()}")
-	y -= 18
-	pdf.drawString(40, y, f"Consultation ID: {consultation.id}")
-	y -= 24
-
-	pdf.setFont("Helvetica-Bold", 12)
-	pdf.drawString(40, y, "Medicines")
-	y -= 18
-	pdf.setFont("Helvetica", 10)
-
-	items = prescription.items.select_related("medicine").all()
-	if not items:
-		pdf.drawString(40, y, "No medicine added")
-		y -= 16
+	patient = consultation.patient
+	doctor = consultation.appointment.doctor
+	prescription_items = prescription.items.select_related("medicine").all()
+	prescribed_tests = prescription.prescribed_tests.all()
+	
+	file_number = patient.filerecord.internal_file_number if hasattr(patient, 'filerecord') else '-'
+	
+	context = {
+		"clinic": clinic,
+		"doctor": doctor,
+		"patient": patient,
+		"consultation": consultation,
+		"prescription": prescription,
+		"prescription_items": prescription_items,
+		"prescribed_tests": prescribed_tests,
+		"file_number": file_number,
+	}
+	
+	html_content = render_to_string("treatment/prescription_pdf.html", context)
+	
+	# Call central ai_service PDF render endpoint
+	api_url = "http://ai_service:8001/v1/render-pdf"
+	headers = {
+		"x-clinic-key": clinic.api_access_token if clinic else "",
+		"Content-Type": "application/json"
+	}
+	payload = {
+		"html": html_content
+	}
+	
+	response = requests.post(api_url, json=payload, headers=headers, timeout=20)
+	if response.status_code == 200:
+		return response.content
 	else:
-		for idx, item in enumerate(items, 1):
-			line = (
-				f"{idx}. {item.medicine.medicine_name} | Dosage: {item.dosage} | "
-				f"Duration: {item.duration}"
-			)
-			pdf.drawString(40, y, line[:110])
-			y -= 16
-			if item.instructions:
-				pdf.drawString(60, y, f"Instructions: {item.instructions[:100]}")
-				y -= 16
-			if y < 80:
-				pdf.showPage()
-				y = h - 50
-
-	y -= 8
-	pdf.setFont("Helvetica-Bold", 12)
-	pdf.drawString(40, y, "Advice")
-	y -= 18
-	pdf.setFont("Helvetica", 10)
-	pdf.drawString(40, y, (prescription.advice_notes or "-")[:120])
-	y -= 18
-	tests_list = [t.name for t in prescription.prescribed_tests.all()]
-	if prescription.lab_investigations:
-		tests_list.append(prescription.lab_investigations)
-	tests_str = ", ".join(tests_list) if tests_list else "-"
-
-	pdf.drawString(40, y, f"Lab Investigations: {tests_str[:95]}")
-	y -= 18
-	pdf.drawString(40, y, f"Next Follow-up: {prescription.next_followup_date or '-'}")
-
-	pdf.showPage()
-	pdf.save()
-	return buffer.getvalue()
+		raise Exception(f"Gotenberg PDF Engine returned status {response.status_code}: {response.text}")
 
 
 def _doctor_queryset(doctor_id):
@@ -255,6 +233,7 @@ def doctor_dashboard(request):
 	if request.method == "POST":
 		action = request.POST.get("action")
 		active_appt_id = request.POST.get("active_appt_id") or request.POST.get("appointment_id")
+		download_rx_id = None
 
 		if action == "update_status":
 			appointment = get_object_or_404(Appointment, id=request.POST.get("appointment_id"))
@@ -337,6 +316,7 @@ def doctor_dashboard(request):
 				appointment.save(update_fields=["status", "updated_at"])
 				_broadcast_queue_update(appointment.doctor_id)
 				messages.success(request, "Consultation, prescription, and PDF saved.")
+				download_rx_id = prescription.id
 			else:
 				messages.error(request, "Consultation form contains invalid data.")
 
@@ -401,7 +381,8 @@ def doctor_dashboard(request):
 
 		doctor_param = f"doctor={doctor_id}" if doctor_id else ""
 		appt_param = f"active_appt={active_appt_id}" if active_appt_id else ""
-		params = [p for p in [doctor_param, appt_param] if p]
+		download_param = f"download_rx_id={download_rx_id}" if download_rx_id else ""
+		params = [p for p in [doctor_param, appt_param, download_param] if p]
 		query = "?" + "&".join(params) if params else ""
 		return redirect(f"/doctor-dashboard/{query}")
 
@@ -994,4 +975,34 @@ def proxy_structure_clinical_note(request):
 	except Exception as e:
 		from django.http import JsonResponse
 		return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+def download_prescription_pdf(request, prescription_id):
+	"""
+	Downloads or displays the prescription PDF directly, resolving it from the media directory
+	or falling back to the URL.
+	"""
+	from django.shortcuts import get_object_or_404, redirect
+	from django.http import HttpResponse, Http404
+	from .models import Prescription
+	import os
+	
+	prescription = get_object_or_404(Prescription, id=prescription_id)
+	if not prescription.prescription_pdf:
+		raise Http404("PDF has not been generated for this prescription.")
+		
+	try:
+		path = prescription.prescription_pdf.path
+		if os.path.exists(path):
+			with open(path, 'rb') as f:
+				response = HttpResponse(f.read(), content_type='application/pdf')
+				response['Content-Disposition'] = f'inline; filename="prescription_{prescription_id}.pdf"'
+				return response
+	except Exception:
+		pass
+		
+	if prescription.prescription_pdf.url:
+		return redirect(prescription.prescription_pdf.url)
+		
+	raise Http404("Prescription PDF file not found on server.")
 

@@ -18,4 +18,5 @@ urlpatterns = [
     path("api/diagnosis-status/<int:appointment_id>/", views.get_diagnosis_status, name="diagnosis-status"),
     path("api/proxy-correct-transcription/", views.proxy_correct_transcription, name="proxy-correct-transcription"),
     path("api/proxy-structure-clinical-note/", views.proxy_structure_clinical_note, name="proxy-structure-clinical-note"),
+    path("api/prescription/<int:prescription_id>/pdf/", views.download_prescription_pdf, name="download-prescription-pdf"),
 ]
