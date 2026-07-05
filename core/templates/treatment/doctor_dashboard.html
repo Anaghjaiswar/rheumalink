@@ -320,6 +320,73 @@
 <section class="grid two">
   <article class="panel">
     <h2>Consultation + Prescription</h2>
+
+    <!-- MedASR Smart Dictation Widget -->
+    <div class="medasr-widget" style="margin: 15px 0 25px; padding: 15px; border: 1px dashed var(--line); border-radius: 8px; background: #fafdf6;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <span style="font-weight: 700; font-size: 0.95rem; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+          🎙️ AI Smart Dictation (MedASR)
+        </span>
+        <div id="asr-status-badge" style="font-size:0.75rem; padding:3px 10px; border-radius:12px; font-weight:bold; background:#e2e8f0; color:#475569;">
+          Ready
+        </div>
+      </div>
+
+      <!-- Dictation Tip -->
+      <div style="font-size: 0.8rem; line-height: 1.4; color: var(--accent); background: var(--accent-soft); border: 1px solid #c2e9d7; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-weight: 500;">
+        💡 <strong>Dictation Tip:</strong> For best results, dictate in this order: <strong>Chief Complaints</strong> &rarr; <strong>Clinical Findings</strong> &rarr; <strong>Provisional Diagnosis</strong> &rarr; <strong>Prescribed Medications (with Dosage, Duration & Instructions)</strong> &rarr; <strong>Lab Tests</strong> &rarr; <strong>Follow-up Timeline</strong>.
+      </div>
+
+      <!-- Action Button -->
+      <button type="button" id="medasr-start-btn" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: bold; background: var(--accent); border-color: var(--accent); color: white; padding: 12px; font-size: 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        Start Smart Dictation
+      </button>
+      <button type="button" id="medasr-stop-btn" style="width: 100%; display: none; align-items: center; justify-content: center; gap: 8px; font-weight: bold; background: var(--danger); border-color: var(--danger); color: white; padding: 12px; font-size: 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/></svg>
+        Stop & Process Note
+      </button>
+
+      <!-- Live Voice Visualizer -->
+      <div id="medasr-wave-container" style="display: none; height: 30px; align-items: center; gap: 4px; margin: 12px 0; padding: 0 10px;">
+        <!-- Javascript will generate wave bars -->
+      </div>
+
+      <!-- Live Transcript Display -->
+      <div id="medasr-live-transcript-box" style="display: none; margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.03); border: 1px solid var(--line); border-radius: 6px; font-size: 0.95rem; line-height: 1.4; color: var(--text); font-style: italic; min-height: 60px; height: auto; text-align: left;">
+        Listening...
+      </div>
+
+      <!-- Processing Pipeline Indicator -->
+      <div id="medasr-processing-indicator" style="display: none; margin-top: 15px; padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; text-align: left;">
+        <style>
+          @keyframes medasr-spin {
+            100% { transform: rotate(360deg); }
+          }
+          .medasr-spinner {
+            animation: medasr-spin 1.2s linear infinite;
+            display: inline-block;
+          }
+        </style>
+        <div style="font-weight: 600; font-size: 0.9rem; color: #334155; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <svg class="medasr-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+          AI Processing Pipeline
+        </div>
+        <div class="pipeline-step" id="step-transcribe" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #64748b; margin-bottom: 8px;">
+          <span class="step-status">⚪</span>
+          <span class="step-label">Finalizing transcription text...</span>
+        </div>
+        <div class="pipeline-step" id="step-polish" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #64748b; margin-bottom: 8px;">
+          <span class="step-status">⚪</span>
+          <span class="step-label">Polishing pronunciation and medical terms...</span>
+        </div>
+        <div class="pipeline-step" id="step-structure" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #64748b;">
+          <span class="step-status">⚪</span>
+          <span class="step-label">Extracting clinical fields (Complaints, Findings, Diagnosis, Advice)...</span>
+        </div>
+      </div>
+    </div>
+
     <form method="post" id="consultation-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="save_consultation">
@@ -1021,7 +1088,443 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  window.wireRowsGlobal = wireRows;
+  window.addLabTestBadgeGlobal = addLabTestBadge;
+
   wireRows();
+})();
+
+// --- MedASR Smart Dictation Javascript Implementation ---
+(function() {
+  let audioContext = null;
+  let microphone = null;
+  let processor = null;
+  let websocket = null;
+  let isRecording = false;
+
+  const startBtn = document.getElementById('medasr-start-btn');
+  const stopBtn = document.getElementById('medasr-stop-btn');
+  const statusBadge = document.getElementById('asr-status-badge');
+  const waveContainer = document.getElementById('medasr-wave-container');
+  const transcriptBox = document.getElementById('medasr-live-transcript-box');
+  const processingIndicator = document.getElementById('medasr-processing-indicator');
+
+  // Input form fields to populate
+  const chiefComplaintsField = document.getElementById('id_chief_complaints');
+  const clinicalFindingsField = document.getElementById('id_clinical_findings');
+  const provisionalDiagnosisField = document.getElementById('id_provisional_diagnosis');
+  const adviceNotesField = document.getElementById('id_advice_notes');
+
+  // Create wave bars for dynamic visual feedback
+  const totalBars = 25;
+  const barElements = [];
+  if (waveContainer) {
+    waveContainer.innerHTML = '';
+    for (let i = 0; i < totalBars; i++) {
+      const bar = document.createElement('div');
+      bar.style.flexGrow = '1';
+      bar.style.height = '3px';
+      bar.style.background = 'rgba(25, 93, 60, 0.2)';
+      bar.style.borderRadius = '2px';
+      bar.style.transition = 'height 0.1s ease';
+      waveContainer.appendChild(bar);
+      barElements.push(bar);
+    }
+  }
+
+  if (startBtn && stopBtn) {
+    startBtn.addEventListener('click', startDictation);
+    stopBtn.addEventListener('click', stopDictation);
+  }
+
+  async function startDictation() {
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'flex';
+    waveContainer.style.display = 'flex';
+    transcriptBox.style.display = 'block';
+    transcriptBox.innerText = 'Connecting to ASR...';
+    transcriptBox.style.color = 'var(--muted)';
+    if (processingIndicator) processingIndicator.style.display = 'none';
+    
+    updateStatus('Connecting', '#e2e8f0', '#475569');
+
+    // Dynamic URL resolution: Connect to port 8001 on the same host (exposed FastAPI endpoint)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.hostname}:8001/v1/stream-transcribe?token={{ api_access_token }}`;
+
+    try {
+      websocket = new WebSocket(wsUrl);
+      websocket.binaryType = 'arraybuffer';
+
+      websocket.onopen = async () => {
+        updateStatus('Listening', '#d7f1e4', '#195d3c');
+        transcriptBox.innerText = 'Listening... Speak now.';
+        transcriptBox.style.color = 'var(--text)';
+        await initMicrophone();
+      };
+
+      websocket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === 'intermediate' || message.type === 'final') {
+          transcriptBox.innerText = message.text || "Listening...";
+        } else if (message.type === 'error') {
+          transcriptBox.innerHTML = `<span style="color: var(--danger);">${message.message}</span>`;
+        }
+      };
+
+      websocket.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        updateStatus('Error', '#fef2f2', '#b91c1c');
+      };
+
+      websocket.onclose = () => {
+        if (isRecording) {
+          stopDictation();
+        }
+      };
+
+    } catch (err) {
+      console.error('WebSocket initialization failure:', err);
+      transcriptBox.innerText = 'Connection to ASR server failed.';
+      updateStatus('Failed', '#fef2f2', '#b91c1c');
+      stopDictation();
+    }
+  }
+
+  async function initMicrophone() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      isRecording = true;
+
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      microphone = audioContext.createMediaStreamSource(stream);
+      processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+      processor.onaudioprocess = (e) => {
+        if (!isRecording || !websocket || websocket.readyState !== WebSocket.OPEN) return;
+
+        const inputData = e.inputBuffer.getChannelData(0);
+        
+        // Draw the moving audio wave level
+        visualizeWave(inputData);
+
+        // Convert float samples to 16-bit signed PCM bytes
+        const pcmData = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          const sample = Math.max(-1, Math.min(1, inputData[i]));
+          pcmData[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+        }
+
+        websocket.send(pcmData.buffer);
+      };
+
+      microphone.connect(processor);
+      processor.connect(audioContext.destination);
+
+    } catch (err) {
+      console.error('Microphone initialization failed:', err);
+      transcriptBox.innerText = 'Microphone access denied. Please grant permissions.';
+      updateStatus('Error', '#fef2f2', '#b91c1c');
+      stopDictation();
+    }
+  }
+
+  async function stopDictation() {
+    isRecording = false;
+    startBtn.style.display = 'none'; // Keep start button hidden while processing
+    stopBtn.style.display = 'none';
+
+    if (processor) {
+      processor.disconnect();
+      processor.onaudioprocess = null;
+      processor = null;
+    }
+    if (microphone) {
+      microphone.disconnect();
+      microphone = null;
+    }
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
+    }
+
+    resetWaveform();
+    waveContainer.style.display = 'none';
+
+    // Show pipeline indicator and set first step as active (working)
+    if (processingIndicator) {
+      processingIndicator.style.display = 'block';
+    }
+    setPipelineStep('step-transcribe', 'working', 'Finalizing transcription text...');
+    setPipelineStep('step-polish', 'idle', 'Polishing pronunciation and medical terms...');
+    setPipelineStep('step-structure', 'idle', 'Extracting clinical fields (Complaints, Findings, Diagnosis, Advice)...');
+
+    // Wait 600ms to allow any trailing Web Audio samples to finish sending and server to respond
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    const rawText = transcriptBox.innerText.trim();
+
+    if (websocket) {
+      if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) {
+        websocket.close();
+      }
+      websocket = null;
+    }
+
+    setPipelineStep('step-transcribe', 'done', 'Transcription completed.');
+
+    if (!rawText || rawText === 'Listening...' || rawText === 'Listening... Speak now.' || rawText.startsWith('Connection')) {
+      updateStatus('Ready', '#e2e8f0', '#475569');
+      if (processingIndicator) processingIndicator.style.display = 'none';
+      transcriptBox.style.display = 'none';
+      startBtn.style.display = 'block'; // Restore start button
+      return;
+    }
+
+    // Call spelling correct & clinical structuring pipeline
+    await runNoteProcessingPipeline(rawText);
+  }
+
+  async function runNoteProcessingPipeline(text) {
+    try {
+      // Step 1: Polish spelling/pronunciation using Django proxy
+      setPipelineStep('step-polish', 'working', 'Polishing pronunciation and medical terms...');
+      updateStatus('Polishing...', '#fef3c7', '#d97706');
+
+      const polishResp = await fetch('/api/proxy-correct-transcription/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: text })
+      });
+
+      if (!polishResp.ok) {
+        throw new Error(`Polish API returned HTTP ${polishResp.status}`);
+      }
+
+      const polishResult = await polishResp.json();
+      if (!polishResult.ok) {
+        throw new Error(polishResult.error || 'Spelling polish failed.');
+      }
+
+      const polishedText = polishResult.corrected_text;
+      transcriptBox.innerText = polishedText;
+      setPipelineStep('step-polish', 'done', 'Pronunciation polished.');
+
+      // Step 2: Extract clinical fields using Django proxy
+      setPipelineStep('step-structure', 'working', 'Extracting clinical fields...');
+      updateStatus('Structuring...', '#dbeafe', '#2563eb');
+
+      const structureResp = await fetch('/api/proxy-structure-clinical-note/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: polishedText })
+      });
+
+      if (!structureResp.ok) {
+        throw new Error(`Structuring API returned HTTP ${structureResp.status}`);
+      }
+
+      const structureResult = await structureResp.json();
+      if (!structureResult.ok || !structureResult.data) {
+        throw new Error(structureResult.error || 'Clinical structuring failed.');
+      }
+
+      const data = structureResult.data;
+      setPipelineStep('step-structure', 'done', 'Clinical fields extracted.');
+
+      // Step 3: Populate Fields and animate with temporary background highlight
+      populateAndHighlightField(chiefComplaintsField, data.chief_complaints);
+      populateAndHighlightField(clinicalFindingsField, data.clinical_findings);
+      populateAndHighlightField(provisionalDiagnosisField, data.provisional_diagnosis);
+      populateAndHighlightField(adviceNotesField, data.general_advice);
+
+      // Populate Other/Custom Lab Notes
+      const otherLabNotesField = document.getElementById('id_lab_investigations');
+      populateAndHighlightField(otherLabNotesField, data.other_lab_notes);
+
+      // Populate Next Follow-up Date
+      const followupField = document.getElementById('id_next_followup_date');
+      populateAndHighlightField(followupField, data.next_followup_date);
+
+      // Populate Prescribed Lab Tests (Checkboxes & Custom badges)
+      if (data.prescribed_tests && Array.isArray(data.prescribed_tests)) {
+        // Uncheck all common tests first
+        document.querySelectorAll('input[name="prescribed_tests"]').forEach(cb => cb.checked = false);
+        
+        // Clear custom test badges
+        const selectedTestsList = document.getElementById('selected-labtests-list');
+        if (selectedTestsList) selectedTestsList.innerHTML = '';
+
+        data.prescribed_tests.forEach(test => {
+          const testId = test.id;
+          const testName = test.name;
+          
+          const cb = document.querySelector(`input[name="prescribed_tests"][value="${testId}"]`);
+          if (cb) {
+            cb.checked = true;
+            // Visual pulse on the checkbox parent label
+            const label = cb.closest('label');
+            if (label) {
+              const origColor = label.style.color;
+              label.style.color = '#10b981';
+              label.style.fontWeight = 'bold';
+              setTimeout(() => {
+                label.style.color = origColor;
+                label.style.fontWeight = 'normal';
+              }, 3000);
+            }
+          } else {
+            // Add custom badge dynamically
+            if (window.addLabTestBadgeGlobal) {
+              window.addLabTestBadgeGlobal(testId, testName);
+            }
+          }
+        });
+      }
+
+      // Populate Prescribed Medications Table
+      const medicinesDict = data.medicines;
+      if (medicinesDict && typeof medicinesDict === 'object') {
+        const medContainer = document.getElementById('medicine-rows');
+        if (medContainer) {
+          medContainer.innerHTML = ''; // Clear existing rows
+          
+          Object.entries(medicinesDict).forEach(([medName, medInfo]) => {
+            const row = document.createElement('div');
+            row.className = 'grid';
+            row.style.gridTemplateColumns = 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)';
+            row.style.gap = '6px';
+            row.innerHTML = `
+              <input type="text" class="med-search" placeholder="Medicine name" value="${medName}">
+              <input type="text" name="dosage" placeholder="Dosage 1-0-1" value="${medInfo.dosage || ''}">
+              <input type="text" name="duration" placeholder="Duration" value="${medInfo.duration || ''}">
+              <input type="text" name="instructions" placeholder="Instructions" value="${medInfo.instructions || ''}">
+              <input type="hidden" name="medicine" value="${medInfo.id}">
+            `;
+            medContainer.appendChild(row);
+            
+            // Highlight animation for medicine inputs
+            row.querySelectorAll('input').forEach(inp => {
+              if (inp.type !== 'hidden') {
+                const origBg = inp.style.background;
+                const origBorder = inp.style.borderColor;
+                inp.style.background = '#ecfdf5';
+                inp.style.borderColor = '#10b981';
+                setTimeout(() => {
+                  inp.style.background = origBg;
+                  inp.style.borderColor = origBorder;
+                }, 3000);
+              }
+            });
+          });
+
+          // Wire up autosuggest handlers for the new inputs
+          if (window.wireRowsGlobal) {
+            window.wireRowsGlobal();
+          }
+        }
+      }
+
+      updateStatus('Completed', '#d1f2e5', '#0f766e');
+      setTimeout(() => {
+        updateStatus('Ready', '#e2e8f0', '#475569');
+        if (processingIndicator) processingIndicator.style.display = 'none';
+        transcriptBox.style.display = 'none';
+        startBtn.style.display = 'block'; // Restore start button
+      }, 2000);
+
+    } catch (err) {
+      console.error('Note processing failed:', err);
+      transcriptBox.innerText = `Error: ${err.message}`;
+      updateStatus('Error', '#fef2f2', '#b91c1c');
+      
+      const workingStep = document.querySelector('.pipeline-step[data-state="working"]');
+      if (workingStep) {
+        workingStep.querySelector('.step-status').innerText = '❌';
+        workingStep.style.color = '#ef4444';
+      }
+
+      setTimeout(() => {
+        startBtn.style.display = 'block'; // Allow retry
+      }, 2000);
+    }
+  }
+
+  function setPipelineStep(stepId, state, label) {
+    const stepEl = document.getElementById(stepId);
+    if (!stepEl) return;
+    
+    stepEl.setAttribute('data-state', state);
+    const statusEl = stepEl.querySelector('.step-status');
+    
+    if (state === 'working') {
+      statusEl.innerHTML = '<svg class="medasr-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: #3b82f6; vertical-align: middle;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>';
+      stepEl.style.color = '#2563eb';
+      stepEl.style.fontWeight = '600';
+    } else if (state === 'done') {
+      statusEl.innerText = '✅';
+      stepEl.style.color = '#10b981';
+      stepEl.style.fontWeight = 'normal';
+    } else {
+      statusEl.innerText = '⚪';
+      stepEl.style.color = '#64748b';
+      stepEl.style.fontWeight = 'normal';
+    }
+    if (label) {
+      stepEl.querySelector('.step-label').innerText = label;
+    }
+  }
+
+  function populateAndHighlightField(element, value) {
+    if (!element) return;
+    if (value && value.trim()) {
+      element.value = value.trim();
+      element.dispatchEvent(new Event('input'));
+      
+      const originalBg = element.style.background;
+      const originalBorder = element.style.borderColor;
+      element.style.background = '#ecfdf5';
+      element.style.borderColor = '#10b981';
+      element.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)';
+      element.style.transition = 'all 0.5s ease';
+
+      setTimeout(() => {
+        element.style.background = originalBg;
+        element.style.borderColor = originalBorder;
+        element.style.boxShadow = '';
+      }, 3000);
+    }
+  }
+
+  function updateStatus(label, bg, color) {
+    if (statusBadge) {
+      statusBadge.textContent = label;
+      statusBadge.style.background = bg;
+      statusBadge.style.color = color;
+    }
+  }
+
+  function visualizeWave(samples) {
+    const step = Math.floor(samples.length / totalBars);
+    for (let i = 0; i < totalBars; i++) {
+      const sampleIdx = i * step;
+      const volume = Math.abs(samples[sampleIdx]) || 0;
+      const height = Math.max(3, Math.min(28, volume * 100));
+      barElements[i].style.height = `${height}px`;
+      barElements[i].style.backgroundColor = `rgba(25, 93, 60, ${0.3 + (volume * 1.5)})`;
+    }
+  }
+
+  function resetWaveform() {
+    barElements.forEach(bar => {
+      bar.style.height = '3px';
+      bar.style.backgroundColor = 'rgba(25, 93, 60, 0.2)';
+    });
+  }
 })();
 </script>
 {% endblock %}

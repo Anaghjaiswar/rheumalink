@@ -16,4 +16,6 @@ urlpatterns = [
     path("api/patient-vitals/<int:appointment_id>/", views.get_appointment_vitals, name="patient-vitals"),
     path("api/generate-rumat-summary/<int:appointment_id>/", views.generate_rumat_summary, name="generate-rumat-summary"),
     path("api/diagnosis-status/<int:appointment_id>/", views.get_diagnosis_status, name="diagnosis-status"),
+    path("api/proxy-correct-transcription/", views.proxy_correct_transcription, name="proxy-correct-transcription"),
+    path("api/proxy-structure-clinical-note/", views.proxy_structure_clinical_note, name="proxy-structure-clinical-note"),
 ]

@@ -425,6 +425,10 @@ def doctor_dashboard(request):
 			Q(filerecord__external_file_number__icontains=search_q)
 		).distinct()
 
+	from clinic.models import ClinicSettings
+	settings_obj = ClinicSettings.objects.first()
+	api_access_token = settings_obj.api_access_token if settings_obj else ""
+
 	context = {
 		"doctor_form": DoctorFilterForm(initial={"doctor": doctor_id}),
 		"selected_doctor": selected_doctor,
@@ -441,6 +445,7 @@ def doctor_dashboard(request):
 		"lab_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:20],
 		"search_results": search_results,
 		"common_tests": LabTest.objects.filter(is_common=True),
+		"api_access_token": api_access_token,
 	}
 	return render(request, "treatment/doctor_dashboard.html", context)
 
@@ -844,4 +849,149 @@ def generate_rumat_summary(request, appointment_id):
 	except Exception as e:
 		from django.http import JsonResponse
 		return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+def proxy_correct_transcription(request):
+	"""
+	Proxies spelling/pronunciation correction requests to the internal ai_service.
+	"""
+	if request.method != "POST":
+		from django.http import JsonResponse
+		return JsonResponse({"error": "Only POST requests allowed"}, status=405)
+		
+	try:
+		import json
+		import requests
+		from django.http import JsonResponse
+		from clinic.models import ClinicSettings
+		
+		settings_obj = ClinicSettings.objects.first()
+		if not settings_obj or not settings_obj.api_access_token:
+			return JsonResponse({"ok": False, "error": "Clinic settings or API key not found in Django."}, status=400)
+			
+		body = json.loads(request.body)
+		text = body.get("text", "")
+		
+		# Call internal ai_service container
+		url = "http://ai_service:8001/v1/correct-transcription"
+		headers = {
+			"x-clinic-key": settings_obj.api_access_token,
+			"Content-Type": "application/json"
+		}
+		payload = {"text": text}
+		
+		response = requests.post(url, json=payload, headers=headers, timeout=15)
+		if response.status_code == 200:
+			return JsonResponse(response.json())
+		else:
+			return JsonResponse({"ok": False, "error": f"AI Service returned HTTP {response.status_code}: {response.text}"}, status=response.status_code)
+	except Exception as e:
+		from django.http import JsonResponse
+		return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+def proxy_structure_clinical_note(request):
+	"""
+	Proxies clinical note structuring requests to the internal ai_service
+	and matches/resolves prescribed lab tests and medications in the Django database,
+	dynamically creating them if they do not exist.
+	"""
+	if request.method != "POST":
+		from django.http import JsonResponse
+		return JsonResponse({"error": "Only POST requests allowed"}, status=405)
+		
+	try:
+		import json
+		import requests
+		from django.http import JsonResponse
+		from clinic.models import ClinicSettings
+		from .models import LabTest, Medicine
+		
+		settings_obj = ClinicSettings.objects.first()
+		if not settings_obj or not settings_obj.api_access_token:
+			return JsonResponse({"ok": False, "error": "Clinic settings or API key not found in Django."}, status=400)
+			
+		body = json.loads(request.body)
+		text = body.get("text", "")
+		
+		# Call internal ai_service container
+		url = "http://ai_service:8001/v1/structure-clinical-note"
+		headers = {
+			"x-clinic-key": settings_obj.api_access_token,
+			"Content-Type": "application/json"
+		}
+		payload = {"text": text}
+		
+		response = requests.post(url, json=payload, headers=headers, timeout=15)
+		if response.status_code == 200:
+			resp_data = response.json()
+			
+			if resp_data.get("ok") and resp_data.get("data"):
+				extracted_data = resp_data.get("data")
+				
+				# 1. Resolve and dynamically create Prescribed Lab Tests in the DB
+				prescribed_tests = extracted_data.get("prescribed_tests", [])
+				resolved_tests = []
+				for test_name in prescribed_tests:
+					test_name_clean = test_name.strip()
+					if not test_name_clean:
+						continue
+					
+					# Case-insensitive iexact match
+					test_obj = LabTest.objects.filter(name__iexact=test_name_clean).first()
+					if not test_obj:
+						# Substring match fallback
+						test_obj = LabTest.objects.filter(name__icontains=test_name_clean).first()
+					if not test_obj:
+						# Create new LabTest
+						test_obj = LabTest.objects.create(name=test_name_clean, is_common=False)
+						
+					resolved_tests.append({
+						"id": test_obj.id,
+						"name": test_obj.name
+					})
+				extracted_data["prescribed_tests"] = resolved_tests
+				
+				# 2. Resolve and dynamically create Medicines in the DB
+				medicines_dict = extracted_data.get("medicines", {})
+				resolved_medicines = {}
+				for med_name, med_info in medicines_dict.items():
+					med_name_clean = med_name.strip()
+					if not med_name_clean:
+						continue
+					
+					# Case-insensitive iexact match
+					med_obj = Medicine.objects.filter(medicine_name__iexact=med_name_clean).first()
+					if not med_obj:
+						# Substring match fallback
+						med_obj = Medicine.objects.filter(medicine_name__icontains=med_name_clean).first()
+					if not med_obj:
+						# Generic name iexact match fallback
+						med_obj = Medicine.objects.filter(generic_name__iexact=med_name_clean).first()
+					if not med_obj:
+						# Create new Medicine record in inventory
+						med_obj = Medicine.objects.create(
+							medicine_name=med_name_clean,
+							generic_name=med_name_clean,
+							form='Tablet',
+							category='General'
+						)
+						
+					resolved_medicines[med_name_clean] = {
+						"id": med_obj.id,
+						"medicine_name": med_obj.medicine_name,
+						"dosage": med_info.get("dosage", ""),
+						"duration": med_info.get("duration", ""),
+						"instructions": med_info.get("instructions", "")
+					}
+				extracted_data["medicines"] = resolved_medicines
+				
+			return JsonResponse(resp_data)
+		else:
+			return JsonResponse({"ok": False, "error": f"AI Service returned HTTP {response.status_code}: {response.text}"}, status=response.status_code)
+	except Exception as e:
+		from django.http import JsonResponse
+		return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
