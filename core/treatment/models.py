@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from utils.storages import LabReportStorage, PrescriptionStorage
 from patient.models import PatientProfile
 from doctor.models import Doctor
 from django.db.models import Max, UniqueConstraint, Q
@@ -112,7 +113,7 @@ class LabResult(models.Model):
     )
 
     report_name = models.CharField(max_length=255, help_text="e.g., CBC, Liver Function, ANA Profile")
-    report_file = models.FileField(upload_to = lab_report_upload_path)
+    report_file = models.FileField(upload_to=lab_report_upload_path, storage=LabReportStorage())
 
 
     # Flexible JSON storage for any test result
@@ -210,7 +211,7 @@ class Prescription(models.Model):
     advice_notes = models.TextField(blank=True, null=True, verbose_name="General Advice")
     next_followup_date = models.DateField(blank=True, null=True)
     prescription_pdf = models.FileField(
-        upload_to=prescription_upload_path, blank=True, null=True
+        upload_to=prescription_upload_path, storage=PrescriptionStorage(), blank=True, null=True
     )
 
     def __str__(self):

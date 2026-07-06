@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prescription Preview | RheumaLink</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --accent-soft: rgba(16, 185, 129, 0.1);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background-color: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 70px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .brand span {
+      color: var(--accent);
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 70px);
+      overflow: hidden;
+    }
+
+    .left-panel {
+      width: 400px;
+      min-width: 400px;
+      background-color: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 30px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .pdf-viewer {
+      flex: 1;
+      background-color: #0b0f19;
+      position: relative;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .info-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+
+    .action-button {
+      width: 100%;
+      background-color: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease-in-out;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .action-button:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+    }
+
+    .action-button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .action-button:disabled {
+      background-color: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Notification / Toast */
+    .status-toast {
+      padding: 16px;
+      border-radius: 10px;
+      display: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      line-height: 1.5;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .status-toast.success {
+      background-color: var(--accent-soft);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .status-toast.error {
+      background-color: var(--danger-soft);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Spinner Animation */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3.5px solid rgba(255, 255, 255, 0.25);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .clinic-badge {
+      font-size: 0.8rem;
+      background-color: var(--border);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      🧬 Rheuma<span>Link</span>
+    </div>
+    {% if clinic %}
+      <div class="clinic-badge">🏢 {{ clinic.name }}</div>
+    {% endif %}
+  </header>
+
+  <div class="main-container">
+    <div class="left-panel">
+      <div>
+        <h1 style="font-family:'Outfit', sans-serif; font-size:1.6rem; font-weight:700; margin-bottom:6px;">Prescription Preview</h1>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Review prescription PDF and send it directly to the patient via WhatsApp.</p>
+      </div>
+
+      <!-- Patient Info Card -->
+      <div class="card">
+        <h2 class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Patient Information
+        </h2>
+        <div class="info-list">
+          <div class="info-item">
+            <div class="info-label">Full Name</div>
+            <div class="info-value">{{ patient.get_full_name }}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">WhatsApp Number</div>
+            <div class="info-value">{% if patient.contact_no %}+91 {{ patient.contact_no }}{% else %}Not Registered{% endif %}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Doctor</div>
+            <div class="info-value">{% if doctor %}Dr. {{ doctor.name }}{% else %}Not Assigned{% endif %}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Area -->
+      <div style="display:flex; flex-direction:column; gap:16px; margin-top:auto;">
+        <button id="send-btn" class="action-button" {% if not patient.contact_no %}disabled{% endif %}>
+          <div class="spinner" id="btn-spinner"></div>
+          <svg width="20" height="20" id="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          <span id="btn-text">Send to Patient via WhatsApp</span>
+        </button>
+
+        <!-- Status Toasts -->
+        <div id="toast-success" class="status-toast success">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          <div>
+            <strong style="display:block; margin-bottom:2px;">Successfully Dispatched!</strong>
+            The prescription file is being sent via WhatsApp Celery task.
+          </div>
+        </div>
+
+        <div id="toast-error" class="status-toast error">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          <div>
+            <strong style="display:block; margin-bottom:2px;">Failed to Send</strong>
+            <span id="error-message">An unexpected error occurred.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF Viewer Frame -->
+    <div class="pdf-viewer">
+      <iframe src="/api/prescription/{{ prescription.id }}/pdf/"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const sendBtn = document.getElementById('send-btn');
+    const btnSpinner = document.getElementById('btn-spinner');
+    const btnIcon = document.getElementById('btn-icon');
+    const btnText = document.getElementById('btn-text');
+    const toastSuccess = document.getElementById('toast-success');
+    const toastError = document.getElementById('toast-error');
+    const errorMessage = document.getElementById('error-message');
+
+    sendBtn.addEventListener('click', async () => {
+      // Reset status views
+      toastSuccess.style.display = 'none';
+      toastError.style.display = 'none';
+
+      // Set Loading State
+      sendBtn.disabled = true;
+      btnSpinner.style.display = 'inline-block';
+      btnIcon.style.display = 'none';
+      btnText.textContent = 'Sending...';
+
+      try {
+        const response = await fetch('/api/prescription/{{ prescription.id }}/send/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+          toastSuccess.style.display = 'flex';
+          btnText.textContent = 'Dispatched';
+          btnSpinner.style.display = 'none';
+          btnIcon.style.display = 'none';
+          // Keep it disabled so they don't double click
+        } else {
+          throw new Error(data.error || 'Server returned an error status.');
+        }
+      } catch (err) {
+        errorMessage.textContent = err.message;
+        toastError.style.display = 'flex';
+        
+        // Reset button
+        sendBtn.disabled = false;
+        btnSpinner.style.display = 'none';
+        btnIcon.style.display = 'inline-block';
+        btnText.textContent = 'Send to Patient via WhatsApp';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -17,8 +17,6 @@ requests
 pandas
 channels>=4.1.0
 channels-redis>=4.2.0
-reportlab>=4.2.0
 
-pymupdf>=1.23.21
-paddlepaddle
-paddleocr
+django-storages[s3]>=1.14.2
+boto3>=1.34.0

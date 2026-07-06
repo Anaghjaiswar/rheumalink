@@ -457,7 +457,9 @@
 
       <div id="medicine-rows">
         <div class="grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 6px;">
-          <input type="text" class="med-search" placeholder="Medicine name">
+          <div class="search-wrapper" style="position: relative;">
+            <input type="text" class="med-search" placeholder="Medicine name">
+          </div>
           <input type="text" name="dosage" placeholder="Dosage 1-0-1">
           <input type="text" name="duration" placeholder="Duration">
           <input type="text" name="instructions" placeholder="Instructions">
@@ -905,18 +907,95 @@ document.addEventListener('DOMContentLoaded', () => {
   connect();
 
   function bindAutosuggest(searchInput, hiddenInput) {
+    // Create styles if they don't exist
+    if (!document.getElementById('autosuggest-styles')) {
+      const style = document.createElement('style');
+      style.id = 'autosuggest-styles';
+      style.textContent = `
+        .autosuggest-dropdown {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          width: 100%;
+          max-height: 200px;
+          overflow-y: auto;
+          background: #ffffff;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          z-index: 1000;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .autosuggest-item {
+          padding: 8px 12px;
+          cursor: pointer;
+          color: #1f2937;
+          border-bottom: 1px solid #e5e7eb;
+          text-align: left;
+        }
+        .autosuggest-item:hover {
+          background: #10b981;
+          color: #ffffff;
+        }
+        .autosuggest-item:last-child {
+          border-bottom: none;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const wrapper = searchInput.parentElement;
+    if (!wrapper) return;
+
+    // Create or find dropdown element
+    let dropdown = wrapper.querySelector('.autosuggest-dropdown');
+    if (!dropdown) {
+      dropdown = document.createElement('div');
+      dropdown.className = 'autosuggest-dropdown';
+      dropdown.style.display = 'none';
+      wrapper.appendChild(dropdown);
+    }
+
+    // Handle input event
     searchInput.addEventListener('input', function () {
       const q = searchInput.value.trim();
-      if (q.length < 2) return;
+      if (q.length < 2) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+        return;
+      }
+
       fetch('/api/medicine-autosuggest/?q=' + encodeURIComponent(q))
         .then(function (resp) { return resp.json(); })
         .then(function (data) {
-          if (!data.results.length) return;
-          const first = data.results[0];
-          searchInput.value = first.medicine_name + (first.strength ? (' ' + first.strength) : '');
-          hiddenInput.value = first.id;
+          dropdown.innerHTML = '';
+          if (!data.results.length) {
+            dropdown.style.display = 'none';
+            return;
+          }
+
+          data.results.forEach(function (item) {
+            const div = document.createElement('div');
+            div.className = 'autosuggest-item';
+            const fullName = item.medicine_name + (item.strength ? (' ' + item.strength) : '');
+            div.textContent = fullName;
+            div.addEventListener('click', function () {
+              searchInput.value = fullName;
+              hiddenInput.value = item.id;
+              dropdown.style.display = 'none';
+              dropdown.innerHTML = '';
+            });
+            dropdown.appendChild(div);
+          });
+          dropdown.style.display = 'block';
         })
         .catch(function () {});
+    });
+
+    // Close dropdown on click outside
+    document.addEventListener('click', function (e) {
+      if (!wrapper.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
     });
   }
 
@@ -977,7 +1056,9 @@ document.addEventListener('DOMContentLoaded', () => {
     row.style.gridTemplateColumns = 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)';
     row.style.gap = '6px';
     row.innerHTML = '' +
-      '<input type="text" class="med-search" placeholder="Medicine name">' +
+      '<div class="search-wrapper" style="position: relative;">' +
+      '  <input type="text" class="med-search" placeholder="Medicine name">' +
+      '</div>' +
       '<input type="text" name="dosage" placeholder="Dosage 1-0-1">' +
       '<input type="text" name="duration" placeholder="Duration">' +
       '<input type="text" name="instructions" placeholder="Instructions">' +
@@ -1312,6 +1393,9 @@ document.addEventListener('DOMContentLoaded', () => {
       transcriptBox.innerText = polishedText;
       setPipelineStep('step-polish', 'done', 'Pronunciation polished.');
 
+      // Introduce a brief delay to avoid hitting LLM API rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       // Step 2: Extract clinical fields using Django proxy
       setPipelineStep('step-structure', 'working', 'Extracting clinical fields...');
       updateStatus('Structuring...', '#dbeafe', '#2563eb');
@@ -1399,7 +1483,9 @@ document.addEventListener('DOMContentLoaded', () => {
             row.style.gridTemplateColumns = 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)';
             row.style.gap = '6px';
             row.innerHTML = `
-              <input type="text" class="med-search" placeholder="Medicine name" value="${medName}">
+              <div class="search-wrapper" style="position: relative;">
+                <input type="text" class="med-search" placeholder="Medicine name" value="${medName}">
+              </div>
               <input type="text" name="dosage" placeholder="Dosage 1-0-1" value="${medInfo.dosage || ''}">
               <input type="text" name="duration" placeholder="Duration" value="${medInfo.duration || ''}">
               <input type="text" name="instructions" placeholder="Instructions" value="${medInfo.instructions || ''}">
@@ -1530,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const downloadRxId = urlParams.get('download_rx_id');
   if (downloadRxId) {
-    const pdfUrl = `/api/prescription/${downloadRxId}/pdf/`;
+    const pdfUrl = `/api/prescription/${downloadRxId}/preview/`;
     window.open(pdfUrl, '_blank');
     
     // Clean up the URL to remove the parameter so it doesn't trigger again on refresh

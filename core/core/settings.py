@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'channels',
     'django_celery_beat',
     'rest_framework',
+    'storages',
     'clinic',
     'doctor',
     'patient',
@@ -82,12 +83,34 @@ TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+# Static files configuration (using Whitenoise)
 WHITENOISE_AUTOREFRESH = True
 MEDIA_ROOT = "/vol/web/media"
 MEDIA_URL = "/media/"         
 STATIC_ROOT = "/vol/web/static"
 STATIC_URL = "/static/"
+
+# MinIO / S3 Storage Settings
+AWS_ACCESS_KEY_ID = os.environ.get('MINIO_ROOT_USER')
+AWS_SECRET_ACCESS_KEY = os.environ.get('MINIO_ROOT_PASSWORD')
+AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_BUCKET_NAME', 'patient-reports')
+AWS_S3_ENDPOINT_URL = os.environ.get('AWS_ENDPOINT', 'http://rheuma-minio:7000')
+AWS_S3_REGION_NAME = os.environ.get('AWS_REGION', 'us-east-1')
+
+# MinIO / S3 configuration details
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
+AWS_QUERYSTRING_AUTH = True
+
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]

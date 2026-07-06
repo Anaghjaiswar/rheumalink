@@ -1,4 +1,5 @@
 from django.db import models
+from utils.storages import ClinicLogoStorage
 import requests
 import uuid
 
@@ -15,7 +16,7 @@ class Address(models.Model):
 
 class ClinicSettings(models.Model):
     name = models.CharField(max_length=255, help_text="Name of the clinic", verbose_name="Clinic Name")
-    logo = models.ImageField(upload_to='clinic_logos/', help_text="Logo of the clinic", verbose_name="Clinic Logo")
+    logo = models.ImageField(upload_to='clinic_logos/', storage=ClinicLogoStorage(), help_text="Logo of the clinic", verbose_name="Clinic Logo")
     address = models.OneToOneField(Address, on_delete=models.CASCADE, help_text="Address of the clinic", verbose_name="Clinic Address")
     contact_email = models.EmailField(help_text="Contact email for the clinic", verbose_name="Contact Email")
     contact_number = models.CharField(max_length=20, help_text="Contact number for the clinic", verbose_name="Contact Number")

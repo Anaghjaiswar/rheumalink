@@ -9,8 +9,6 @@ from django.core.files.base import ContentFile
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 from django.views.decorators.csrf import csrf_exempt
 import requests
 
@@ -35,6 +33,9 @@ from .forms import (
 from .models import Appointment, Consultation, LabResult, Medicine, Prescription, PrescriptionItem, RumatDiagnosis, Vitals, jointspain, LabTest
 from .services import RheumaAnalyticsService
 from .tasks import process_lab_report_task
+from logging import getLogger
+
+all_logs = getLogger("all_logs.log")
 
 
 def _queue_group(doctor_id=None):
@@ -862,7 +863,8 @@ def proxy_correct_transcription(request):
 		}
 		payload = {"text": text}
 		
-		response = requests.post(url, json=payload, headers=headers, timeout=15)
+		response = requests.post(url, json=payload, headers=headers, timeout=60)
+		all_logs.info(f"response of AI Service: {response.text}")
 		if response.status_code == 200:
 			return JsonResponse(response.json())
 		else:
@@ -905,7 +907,8 @@ def proxy_structure_clinical_note(request):
 		}
 		payload = {"text": text}
 		
-		response = requests.post(url, json=payload, headers=headers, timeout=15)
+		response = requests.post(url, json=payload, headers=headers, timeout=60)
+		all_logs.info(f"response of AI Service: {response.text}")
 		if response.status_code == 200:
 			resp_data = response.json()
 			
@@ -952,6 +955,19 @@ def proxy_structure_clinical_note(request):
 						# Generic name iexact match fallback
 						med_obj = Medicine.objects.filter(generic_name__iexact=med_name_clean).first()
 					if not med_obj:
+						# Dynamic fuzzy match fallback using standard difflib
+						import difflib
+						db_names = list(Medicine.objects.values_list('medicine_name', flat=True))
+						db_generics = list(Medicine.objects.exclude(generic_name__isnull=True).exclude(generic_name="").values_list('generic_name', flat=True))
+						possibilities = list(set(db_names + db_generics))
+						
+						close_matches = difflib.get_close_matches(med_name_clean, possibilities, n=1, cutoff=0.6)
+						if close_matches:
+							matched_name = close_matches[0]
+							med_obj = Medicine.objects.filter(medicine_name=matched_name).first()
+							if not med_obj:
+								med_obj = Medicine.objects.filter(generic_name=matched_name).first()
+					if not med_obj:
 						# Create new Medicine record in inventory
 						med_obj = Medicine.objects.create(
 							medicine_name=med_name_clean,
@@ -977,32 +993,100 @@ def proxy_structure_clinical_note(request):
 		return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+from django.views.decorators.clickjacking import xframe_options_sameorigin
+
+@xframe_options_sameorigin
 def download_prescription_pdf(request, prescription_id):
 	"""
-	Downloads or displays the prescription PDF directly, resolving it from the media directory
-	or falling back to the URL.
+	Downloads or displays the prescription PDF directly, resolving it from the S3/MinIO or local storage backend.
 	"""
-	from django.shortcuts import get_object_or_404, redirect
+	from django.shortcuts import get_object_or_404
 	from django.http import HttpResponse, Http404
 	from .models import Prescription
-	import os
 	
 	prescription = get_object_or_404(Prescription, id=prescription_id)
 	if not prescription.prescription_pdf:
 		raise Http404("PDF has not been generated for this prescription.")
 		
 	try:
-		path = prescription.prescription_pdf.path
-		if os.path.exists(path):
-			with open(path, 'rb') as f:
-				response = HttpResponse(f.read(), content_type='application/pdf')
-				response['Content-Disposition'] = f'inline; filename="prescription_{prescription_id}.pdf"'
-				return response
-	except Exception:
-		pass
-		
-	if prescription.prescription_pdf.url:
-		return redirect(prescription.prescription_pdf.url)
-		
-	raise Http404("Prescription PDF file not found on server.")
+		with prescription.prescription_pdf.open('rb') as f:
+			response = HttpResponse(f.read(), content_type='application/pdf')
+			response['Content-Disposition'] = f'inline; filename="prescription_{prescription_id}.pdf"'
+			return response
+	except Exception as e:
+		raise Http404(f"Error reading PDF file: {e}")
+
+
+def prescription_preview(request, prescription_id):
+	"""Renders the prescription preview page for the doctor, showing the PDF and option to send to patient."""
+	from django.shortcuts import get_object_or_404, render
+	from .models import Prescription
+	from clinic.models import ClinicSettings
+
+	prescription = get_object_or_404(Prescription, id=prescription_id)
+	patient = prescription.consultation.patient
+	doctor = prescription.consultation.appointment.doctor if prescription.consultation.appointment else None
+	clinic = ClinicSettings.objects.first()
+
+	context = {
+		"prescription": prescription,
+		"patient": patient,
+		"doctor": doctor,
+		"clinic": clinic,
+	}
+	return render(request, "treatment/prescription_preview.html", context)
+
+
+@csrf_exempt
+def send_prescription_to_patient(request, prescription_id):
+	"""API endpoint to trigger the Celery task sending the prescription PDF via WhatsApp."""
+	from django.shortcuts import get_object_or_404
+	from django.http import JsonResponse
+	from .models import Prescription
+	from clinic.models import ClinicSettings
+	from whatsapp.tasks import send_whatsapp_file
+
+	if request.method != "POST":
+		return JsonResponse({"ok": False, "error": "Only POST requests are allowed"}, status=405)
+
+	prescription = get_object_or_404(Prescription, id=prescription_id)
+	
+	if not prescription.prescription_pdf:
+		return JsonResponse({"ok": False, "error": "Prescription PDF has not been generated yet"}, status=400)
+
+	patient = prescription.consultation.patient
+	patient_phone = patient.contact_no
+
+	if not patient_phone:
+		return JsonResponse({"ok": False, "error": "Patient does not have a contact number registered"}, status=400)
+
+	doctor_name = "your doctor"
+	if prescription.consultation.appointment and prescription.consultation.appointment.doctor:
+		doctor_name = prescription.consultation.appointment.doctor.name
+
+	clinic_name = "RheumaLink Clinic"
+	clinic = ClinicSettings.objects.first()
+	if clinic and clinic.name:
+		clinic_name = clinic.name
+
+	patient_name = f"{patient.first_name} {patient.last_name}"
+
+	caption = (
+		f"Intended for - {patient_name}\n\n"
+		f"Here is the report of your today's consultation with {doctor_name}.\n\n"
+		f"Stay healthy, stay happy!\n\n"
+		f"Best regards,\n"
+		f"{clinic_name}"
+	)
+
+	# Trigger Celery task
+	send_whatsapp_file.delay(
+		file_path=prescription.prescription_pdf.name,
+		file_name=f"prescription_{prescription.id}.pdf",
+		caption=caption,
+		phone_number=patient_phone,
+		bucket_name=prescription.prescription_pdf.storage.bucket_name if hasattr(prescription.prescription_pdf.storage, 'bucket_name') else None
+	)
+
+	return JsonResponse({"ok": True, "message": "Prescription sending task dispatched successfully"})
 
