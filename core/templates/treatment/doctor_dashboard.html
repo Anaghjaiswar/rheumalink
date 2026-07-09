@@ -2,6 +2,13 @@
 {% block title %}Doctor Dashboard{% endblock %}
 
 {% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--line);">
+  <h2 style="margin: 0; font-family: var(--font-title);">Doctor Desk</h2>
+  <a href="{% url 'upload-lab-report-page' %}" class="button" style="background-color: var(--accent); border-color: var(--accent); color: white; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin: 0;">
+    🔬 Upload Patient Lab Reports
+  </a>
+</div>
+
 <section class="panel">
   <h2>Doctor Selector</h2>
   <form method="get" class="grid two">
@@ -533,40 +540,7 @@
 
 <!-- Old Medical Record section replaced by new Active Patient Clinical Information panel -->
 
-<section class="panel">
-  <h2>Lab Report Sync</h2>
-  <table>
-    <thead><tr><th>Report</th><th>Patient</th><th>Action</th></tr></thead>
-    <tbody>
-      {% for report in lab_reports %}
-        <tr>
-          <td>{{ report.report_name }}</td>
-          <td>
-            <strong>{{ report.patient.get_full_name }}</strong>
-            <br>
-            <small style="color:var(--muted); font-size:0.8rem;">
-              File: {{ report.patient.filerecord.internal_file_number }}
-              {% if report.patient.filerecord.external_file_number %}
-                (Ext: {{ report.patient.filerecord.external_file_number }})
-              {% endif %}
-            </small>
-          </td>
-          <td>
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="sync_lab_report">
-              <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
-              <input type="hidden" name="report_id" value="{{ report.id }}">
-              <button type="submit">Sync Now</button>
-            </form>
-          </td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="3">No reports available.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+
 {% endblock %}
 
 {% block extra_js %}

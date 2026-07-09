@@ -215,7 +215,7 @@ def compounder_dashboard(request):
 		"report_form": LabResultForm(),
 		"today_appointments": today_appointments,
 		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:10],
-		"pending_reports": LabResult.objects.select_related("patient__filerecord", "appointment")[:10],
+		"pending_reports": LabResult.objects.filter(is_verified=False).select_related("patient__filerecord", "appointment")[:10],
 		"search_results": search_results,
 		"is_recent_list": is_recent_list,
 	}
@@ -1089,4 +1089,130 @@ def send_prescription_to_patient(request, prescription_id):
 	)
 
 	return JsonResponse({"ok": True, "message": "Prescription sending task dispatched successfully"})
+
+
+def upload_lab_report_page(request):
+	"""Renders the single page lab report upload and extraction playground."""
+	return render(request, "treatment/upload_lab_report.html")
+
+
+@csrf_exempt
+def api_upload_lab_report_temp(request):
+	"""AJAX view to upload PDF locally and queue the Celery MinIO/LLM task."""
+	if request.method != "POST":
+		return JsonResponse({"ok": False, "error": "Only POST allowed"}, status=405)
+		
+	patient_id = request.POST.get("patient_id")
+	appointment_id = request.POST.get("appointment_id")
+	report_name = request.POST.get("report_name")
+	test_date = request.POST.get("test_date")
+	pdf_file = request.FILES.get("file")
+	
+	if not patient_id or not report_name or not pdf_file:
+		return JsonResponse({"ok": False, "error": "Missing required fields (patient_id, report_name, file)"}, status=400)
+		
+	# Save the file temporarily in media root
+	from django.conf import settings
+	from django.core.files.storage import FileSystemStorage
+	import os
+	
+	temp_dir = os.path.join(settings.MEDIA_ROOT, 'temp_uploads')
+	os.makedirs(temp_dir, exist_ok=True)
+	
+	fs = FileSystemStorage(location=temp_dir, base_url=settings.MEDIA_URL + 'temp_uploads/')
+	filename = fs.save(pdf_file.name, pdf_file)
+	temp_file_path = fs.path(filename)
+	temp_pdf_url = fs.url(filename)
+	
+	# Trigger Celery task
+	from .tasks import process_lab_report_pipeline_task
+	task = process_lab_report_pipeline_task.delay(
+		patient_id=patient_id,
+		appointment_id=appointment_id if appointment_id else None,
+		report_name=report_name,
+		test_date_str=test_date if test_date else None,
+		temp_file_path=temp_file_path
+	)
+	
+	return JsonResponse({
+		"ok": True,
+		"task_id": task.id,
+		"temp_pdf_url": temp_pdf_url
+	})
+
+
+def api_lab_report_task_status(request, task_id):
+	"""AJAX view to poll Celery task state and return results upon completion."""
+	from celery.result import AsyncResult
+	res = AsyncResult(task_id)
+	if res.ready():
+		if res.successful():
+			return JsonResponse({"status": "SUCCESS", "result": res.result})
+		else:
+			return JsonResponse({"status": "FAILURE", "error": str(res.result)})
+	else:
+		return JsonResponse({"status": "PROCESSING"})
+
+
+@csrf_exempt
+def api_save_extracted_lab_data(request, report_id):
+	"""AJAX view to update test_data in LabResult after compounder/doctor verification."""
+	if request.method != "POST":
+		return JsonResponse({"ok": False, "error": "Only POST allowed"}, status=405)
+		
+	import json
+	try:
+		report = get_object_or_404(LabResult, id=report_id)
+		body = json.loads(request.body)
+		test_data = body.get("test_data", {})
+		
+		# Format expected back to: {"test_name": {"value": val, "unit": unit}}
+		report.test_data = test_data
+		report.is_verified = True
+		report.save()
+		return JsonResponse({"ok": True})
+	except Exception as e:
+		return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+def api_patient_appointments(request, patient_id):
+	"""AJAX view to retrieve list of patient appointments for timeline selection."""
+	patient = get_object_or_404(PatientProfile, id=patient_id)
+	appointments = Appointment.objects.filter(patient=patient).order_by('-appointment_date', '-appointment_time')
+	data = []
+	for appt in appointments:
+		data.append({
+			"id": appt.id,
+			"date": appt.appointment_date.strftime('%Y-%m-%d'),
+			"time": appt.appointment_time.strftime('%H:%M') if appt.appointment_time else "",
+			"doctor": appt.doctor.name if appt.doctor else "Unassigned",
+			"reason": appt.reason_for_visit or ""
+		})
+	return JsonResponse({"ok": True, "appointments": data})
+
+
+def api_patient_search(request):
+	"""AJAX view to search patients by name, phone, or file numbers."""
+	q = request.GET.get("q", "").strip()
+	if not q:
+		return JsonResponse({"ok": True, "patients": []})
+	from django.db.models import Q
+	patients = PatientProfile.objects.select_related("filerecord").filter(
+		Q(first_name__icontains=q) |
+		Q(last_name__icontains=q) |
+		Q(contact_no__icontains=q) |
+		Q(filerecord__internal_file_number__icontains=q) |
+		Q(filerecord__external_file_number__icontains=q)
+	).distinct()[:10]
+	
+	data = []
+	for pat in patients:
+		data.append({
+			"id": pat.id,
+			"name": pat.get_full_name(),
+			"phone": pat.contact_no,
+			"internal_file": pat.filerecord.internal_file_number if hasattr(pat, 'filerecord') else "-",
+			"external_file": pat.filerecord.external_file_number if (hasattr(pat, 'filerecord') and pat.filerecord.external_file_number) else "-"
+		})
+	return JsonResponse({"ok": True, "patients": data})
 

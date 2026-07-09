@@ -23,6 +23,10 @@ class RheumaAnalyticsService:
             # 2. Get Latest Lab Markers (ESR/CRP)
             # Fetching from the flexible JSON field we designed
             lab_report = LabResult.objects.filter(appointment=appointment).first()
+            if not lab_report:
+                # Fallback to the latest verified lab report of the patient
+                lab_report = LabResult.objects.filter(patient=appointment.patient, is_verified=True).order_by('-test_date', '-created_at').first()
+                
             esr = lab_report.get_marker_value('ESR') if lab_report else None
             crp = lab_report.get_marker_value('CRP') if lab_report else None
             

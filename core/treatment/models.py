@@ -93,7 +93,20 @@ class Vitals(models.Model):
 
 def lab_report_upload_path(instance, filename):
     # NOTE:Files will be saved to: media/lab_reports/YYYY/MM/
-    return f"lab_reports/{instance.appointment.appointment_date.year}/{instance.appointment.appointment_date.month}/{filename}"
+    from datetime import date, datetime
+    dt = date.today()
+    if instance.appointment and instance.appointment.appointment_date:
+        dt = instance.appointment.appointment_date
+    elif instance.test_date:
+        dt = instance.test_date
+        
+    if isinstance(dt, str):
+        try:
+            dt = datetime.strptime(dt, "%Y-%m-%d").date()
+        except ValueError:
+            dt = date.today()
+            
+    return f"lab_reports/{dt.year}/{dt.month:02d}/{filename}"
 
 
 class LabResult(models.Model):
@@ -114,6 +127,7 @@ class LabResult(models.Model):
 
     report_name = models.CharField(max_length=255, help_text="e.g., CBC, Liver Function, ANA Profile")
     report_file = models.FileField(upload_to=lab_report_upload_path, storage=LabReportStorage())
+    test_date = models.DateField(null=True, blank=True, help_text="The date when the lab report test was conducted")
 
 
     # Flexible JSON storage for any test result
@@ -138,9 +152,37 @@ class LabResult(models.Model):
 
     # Helper method for DAS28 calculation
     def get_marker_value(self, marker_name):
-        """Safely extracts a marker (like ESR or CRP) from JSON data"""
-        marker = self.test_data.get(marker_name)
-        return float(marker['value']) if marker and 'value' in marker else None
+        """Safely extracts a marker (like ESR or CRP) from JSON data with fuzzy case-insensitive matching"""
+        name_lower = marker_name.lower()
+        matched_key = None
+        
+        for key in self.test_data.keys():
+            key_lower = key.lower()
+            if name_lower == "crp":
+                if "crp" in key_lower or "c-reactive" in key_lower or "c reactive" in key_lower:
+                    matched_key = key
+                    break
+            elif name_lower == "esr":
+                if "esr" in key_lower or "erythrocyte sedimentation" in key_lower or "sedimentation rate" in key_lower:
+                    matched_key = key
+                    break
+            else:
+                if name_lower in key_lower:
+                    matched_key = key
+                    break
+                    
+        if not matched_key:
+            return None
+            
+        marker = self.test_data.get(matched_key)
+        if marker and 'value' in marker:
+            try:
+                # Parse as float, handling potential comma/string representations
+                val_str = str(marker['value']).replace(',', '.').strip()
+                return float(val_str)
+            except (ValueError, TypeError):
+                return None
+        return None
 
 class Medicine(models.Model):
     FORM_CHOICES = [

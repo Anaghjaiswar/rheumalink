@@ -118,7 +118,10 @@ class PrescriptionForm(forms.ModelForm):
 class LabResultForm(forms.ModelForm):
     class Meta:
         model = LabResult
-        fields = ["patient", "appointment", "report_name", "report_file"]
+        fields = ["patient", "appointment", "report_name", "report_file", "test_date"]
+        widgets = {
+            "test_date": forms.DateInput(attrs={"type": "date"}),
+        }
 
 
 class PatientDiagnosisForm(forms.ModelForm):

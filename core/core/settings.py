@@ -165,6 +165,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "cleanup_expired_whatsapp_sessions",
         "schedule": 60.0,
     },
+    "cleanup-unverified-lab-reports": {
+        "task": "cleanup_unverified_lab_reports_task",
+        "schedule": 10800.0, # Every 3 hours (3 * 3600 seconds)
+    },
 }
 
 from .logging_config import master_logger  

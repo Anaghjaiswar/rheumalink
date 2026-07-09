@@ -1,0 +1,758 @@
+{% extends 'base.html' %}
+{% block title %}Upload & Extract Lab Reports{% endblock %}
+
+{% block extra_head %}
+<!-- PDF.js library to validate digital vs scanned PDFs in browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<style>
+    .search-section {
+        margin-bottom: 25px;
+    }
+    .search-input-wrapper {
+        position: relative;
+        display: flex;
+        gap: 8px;
+    }
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        z-index: 1000;
+        max-height: 250px;
+        overflow-y: auto;
+        display: none;
+    }
+    .search-item {
+        padding: 10px 14px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        justify-content: space-between;
+    }
+    .search-item:hover {
+        background: var(--accent-soft);
+    }
+    .selected-patient-card {
+        display: none;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent);
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 4px;
+    }
+
+    /* Timeline Styles */
+    .timeline-container {
+        display: none;
+        margin-top: 25px;
+    }
+    .timeline {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding: 15px 5px;
+        align-items: center;
+        border: 1px solid var(--line);
+        background: #fafdf8;
+        border-radius: 4px;
+    }
+    .timeline-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        min-width: 140px;
+        text-align: center;
+        position: relative;
+    }
+    .timeline-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid var(--line);
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        font-weight: bold;
+        color: var(--muted);
+        transition: all 0.2s;
+        margin-bottom: 6px;
+    }
+    .timeline-item.active .timeline-circle {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+    }
+    .timeline-date {
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+    .timeline-desc {
+        font-size: 0.75rem;
+        color: var(--muted);
+    }
+
+    /* Upload Widget Area */
+    .form-section {
+        display: none;
+        margin-top: 25px;
+    }
+    .upload-widget {
+        border: 2px dashed var(--line);
+        background: #fafdf8;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-radius: 4px;
+        margin-bottom: 12px;
+    }
+    .upload-widget:hover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+    }
+    .upload-widget i {
+        font-size: 2rem;
+        display: block;
+        margin-bottom: 10px;
+    }
+    .disclaimer {
+        font-size: 0.82rem;
+        color: var(--warning);
+        font-weight: 600;
+        margin-top: 8px;
+    }
+
+    /* Main Split Screen Area */
+    .split-container {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 30px;
+        border-top: 2px solid var(--line);
+        padding-top: 30px;
+        min-height: 600px;
+    }
+    .viewer-pane {
+        border: 1px solid var(--line);
+        background: #fff;
+        height: 100%;
+        min-height: 550px;
+    }
+    .viewer-pane iframe {
+        width: 100%;
+        height: 100%;
+        min-height: 550px;
+        border: none;
+    }
+    .results-pane {
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Loader */
+    .loader-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        padding: 50px 0;
+        text-align: center;
+    }
+    .loader-spinner {
+        width: 45px;
+        height: 45px;
+        border: 4px solid var(--line);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 1s infinite linear;
+        margin-bottom: 15px;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Editable Table Styles */
+    .results-table-container {
+        display: none;
+        flex: 1;
+        flex-direction: column;
+    }
+    .results-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    .results-table th, .results-table td {
+        padding: 8px;
+    }
+    .results-table input {
+        border: 1px solid transparent;
+        padding: 4px 6px;
+        width: 100%;
+        background: transparent;
+    }
+    .results-table input:focus {
+        border-color: var(--line);
+        background: #fff;
+        outline: none;
+    }
+    .btn-row-action {
+        background: none;
+        border: none;
+        color: var(--danger);
+        cursor: pointer;
+        padding: 4px;
+        font-weight: bold;
+    }
+    .btn-row-action:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin:0;">🔬 Lab Report AI Pipeline</h2>
+        <a href="javascript:history.back()" class="button alt" style="width:auto; margin:0;">Back to Dashboard</a>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+        <label>1. Search & Select Patient</label>
+        <div class="search-input-wrapper">
+            <input type="text" id="patient-search-input" placeholder="Type name, internal file number, or phone number to search..." autocomplete="off">
+            <div class="search-results" id="search-results-box"></div>
+        </div>
+
+        <!-- Selected Patient display -->
+        <div class="selected-patient-card" id="selected-patient-view">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 id="selected-patient-name" style="margin:0; text-transform:none; font-size:1.1rem; color:var(--accent);">No Patient Selected</h3>
+                    <span style="font-size:0.85rem; color:var(--muted);" id="selected-patient-meta">Internal File: -</span>
+                </div>
+                <button type="button" class="alt" style="width:auto; padding:4px 10px; margin:0;" onclick="resetSelectedPatient()">Change Patient</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline of Appointments Section -->
+    <div class="timeline-container" id="timeline-view">
+        <label>2. Select Associated Appointment</label>
+        <div class="timeline" id="appointments-timeline-box">
+            <!-- AJAX will generate items -->
+        </div>
+    </div>
+
+    <!-- Lab Upload Form Section -->
+    <div class="form-section" id="upload-form-view">
+        <label>3. Lab Report Metadata & File</label>
+        <form id="lab-upload-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="patient_id" id="form-patient-id">
+            <input type="hidden" name="appointment_id" id="form-appointment-id">
+
+            <div class="grid two" style="margin-top: 0; margin-bottom: 12px;">
+                <div>
+                    <label for="id_report_name">Report Name</label>
+                    <input type="text" name="report_name" id="id_report_name" placeholder="e.g. CBC, Lipid Profile, LFT" required>
+                </div>
+                <div>
+                    <label for="id_test_date">Test Conducted Date</label>
+                    <input type="date" name="test_date" id="id_test_date" required>
+                </div>
+            </div>
+
+            <div class="upload-widget" onclick="triggerFileInput()">
+                <div style="font-size: 1.8rem; margin-bottom: 6px;">📄</div>
+                <strong>Drag & Drop Lab PDF here</strong>
+                <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--muted);">or click to browse local files</p>
+                <input type="file" id="report-file-input" name="file" accept=".pdf" style="display:none;" onchange="handleFileSelect(event)">
+                <div id="file-info-label" style="margin-top: 10px; font-weight: bold; color: var(--accent); display: none;"></div>
+                <p class="disclaimer" style="color: var(--danger);">⚠️ Scanned or image-based PDFs are not supported. Please upload digital (word-based) PDFs only.</p>
+            </div>
+
+            <button type="submit" id="btn-upload-submit" disabled>Upload & Trigger AI Extraction</button>
+        </form>
+    </div>
+
+    <!-- Split Screen Area for Results -->
+    <div class="split-container" id="split-screen-view">
+        <!-- Left Side: PDF Viewer -->
+        <div class="viewer-pane" id="pdf-viewer-container">
+            <iframe id="pdf-viewer-frame"></iframe>
+        </div>
+
+        <!-- Right Side: Extracted Clinical Data -->
+        <div class="results-pane">
+            <h3 style="border-bottom: 2px solid var(--line); padding-bottom: 8px;">🔬 Extracted Laboratory Data</h3>
+            
+            <!-- Loading Indicator -->
+            <div class="loader-box" id="extraction-loader">
+                <div class="loader-spinner"></div>
+                <h4 style="margin:0;">AI Extraction in Progress</h4>
+                <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--muted);">Docling is converting PDF tables and Groq is structuring data... (takes 5-10s)</p>
+            </div>
+
+            <!-- Table of Results -->
+            <div class="results-table-container" id="results-table-view">
+                <div style="flex: 1; overflow-y: auto;">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Test Name</th>
+                                <th>Result Value</th>
+                                <th>Unit</th>
+                                <th>Reference Interval</th>
+                                <th style="width:50px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-rows">
+                            <!-- JS will generate rows -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top: 15px; border-top:1px solid var(--line); padding-top:15px;">
+                    <button type="button" class="alt" style="width:auto; margin:0;" onclick="addNewTableRow()">➕ Add Row</button>
+                    <button type="button" id="btn-save-extracted-data" style="width:auto; margin:0;" onclick="saveVerifiedData()">💾 Save & Verify Results</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedPatientId = null;
+    let selectedAppointmentId = null;
+    let createdReportId = null;
+    let selectedFile = null;
+    let pollInterval = null;
+
+    // Set today's date as default in form
+    document.addEventListener("DOMContentLoaded", () => {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('id_test_date').value = today;
+    });
+
+    // Patient Search Event Listeners
+    const searchInput = document.getElementById("patient-search-input");
+    const resultsBox = document.getElementById("search-results-box");
+
+    searchInput.addEventListener("input", () => {
+        const query = searchInput.value.trim();
+        if (query.length < 2) {
+            resultsBox.style.display = "none";
+            return;
+        }
+
+        fetch(`/api/patient/search/?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok && data.patients.length > 0) {
+                    resultsBox.innerHTML = "";
+                    data.patients.forEach(pat => {
+                        const div = document.createElement("div");
+                        div.className = "search-item";
+                        div.innerHTML = `
+                            <strong>${pat.name}</strong>
+                            <span style="font-size:0.8rem; color:var(--muted);">File: ${pat.internal_file} | Ext: ${pat.external_file} | ${pat.phone}</span>
+                        `;
+                        div.addEventListener("click", () => selectPatient(pat));
+                        resultsBox.appendChild(div);
+                    });
+                    resultsBox.style.display = "block";
+                } else {
+                    resultsBox.innerHTML = `<div style="padding:10px; color:var(--muted);">No patients found</div>`;
+                    resultsBox.style.display = "block";
+                }
+            })
+            .catch(err => console.error("Error searching patients:", err));
+    });
+
+    // Close search box clicking outside
+    document.addEventListener("click", (e) => {
+        if (e.target !== searchInput) {
+            resultsBox.style.display = "none";
+        }
+    });
+
+    function selectPatient(patient) {
+        selectedPatientId = patient.id;
+        document.getElementById("form-patient-id").value = patient.id;
+        
+        // Update view
+        document.getElementById("selected-patient-name").textContent = patient.name;
+        document.getElementById("selected-patient-meta").textContent = `Internal File: ${patient.internal_file} | Phone: ${patient.phone}`;
+        document.getElementById("selected-patient-view").style.display = "block";
+        searchInput.style.display = "none";
+        resultsBox.style.display = "none";
+
+        // Load appointments
+        loadAppointments(patient.id);
+    }
+
+    function resetSelectedPatient() {
+        selectedPatientId = null;
+        selectedAppointmentId = null;
+        document.getElementById("form-patient-id").value = "";
+        document.getElementById("form-appointment-id").value = "";
+        
+        document.getElementById("selected-patient-view").style.display = "none";
+        searchInput.value = "";
+        searchInput.style.display = "block";
+        
+        document.getElementById("timeline-view").style.display = "none";
+        document.getElementById("upload-form-view").style.display = "none";
+        document.getElementById("split-screen-view").style.display = "none";
+        document.getElementById("btn-upload-submit").disabled = true;
+        resetFileInput();
+    }
+
+    function loadAppointments(patientId) {
+        fetch(`/api/patient/${patientId}/appointments/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok) {
+                    const box = document.getElementById("appointments-timeline-box");
+                    box.innerHTML = "";
+
+                    // Add a default "Latest / General" timeline option
+                    const defaultItem = document.createElement("div");
+                    defaultItem.className = "timeline-item active";
+                    defaultItem.id = "appt-item-latest";
+                    defaultItem.innerHTML = `
+                        <div class="timeline-circle">★</div>
+                        <div class="timeline-date">Latest</div>
+                        <div class="timeline-desc">Or General Upload</div>
+                    `;
+                    defaultItem.addEventListener("click", () => selectAppointment(null));
+                    box.appendChild(defaultItem);
+
+                    // Add real appointments
+                    data.appointments.forEach((appt, index) => {
+                        const item = document.createElement("div");
+                        item.className = "timeline-item";
+                        item.id = `appt-item-${appt.id}`;
+                        item.innerHTML = `
+                            <div class="timeline-circle">${index + 1}</div>
+                            <div class="timeline-date">${appt.date}</div>
+                            <div class="timeline-desc">${appt.doctor}</div>
+                        `;
+                        item.addEventListener("click", () => selectAppointment(appt.id));
+                        box.appendChild(item);
+                    });
+
+                    document.getElementById("timeline-view").style.display = "block";
+                    document.getElementById("upload-form-view").style.display = "block";
+                    
+                    // Default select Latest (null appointment)
+                    selectAppointment(null);
+                }
+            })
+            .catch(err => console.error("Error loading patient appointments:", err));
+    }
+
+    function selectAppointment(apptId) {
+        selectedAppointmentId = apptId;
+        document.getElementById("form-appointment-id").value = apptId ? apptId : "";
+
+        // Remove active class from all timeline items
+        document.querySelectorAll(".timeline-item").forEach(item => {
+            item.classList.remove("active");
+        });
+
+        // Set active class to selected
+        if (apptId) {
+            const item = document.getElementById(`appt-item-${apptId}`);
+            if (item) item.classList.add("active");
+        } else {
+            const item = document.getElementById("appt-item-latest");
+            if (item) item.classList.add("active");
+        }
+    }
+
+    // Drag & Drop / File selection triggers
+    function triggerFileInput() {
+        document.getElementById("report-file-input").click();
+    }
+
+    // Setup PDF.js worker URL
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    async function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file || file.type !== "application/pdf") {
+            alert("Please select a valid PDF file.");
+            resetFileInput();
+            return;
+        }
+
+        const submitBtn = document.getElementById("btn-upload-submit");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Verifying PDF structure...";
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const firstPage = await pdf.getPage(1);
+            const textContent = await firstPage.getTextContent();
+            const extractedText = textContent.items.map(item => item.str).join('');
+            
+            if (extractedText.trim().length < 150) {
+                alert("❌ Scanned or image-based PDFs are not supported. Please upload a digital, word-based PDF.");
+                resetFileInput();
+                submitBtn.textContent = "Upload & Trigger AI Extraction";
+                return;
+            }
+
+            selectedFile = file;
+            document.getElementById("file-info-label").textContent = `Selected: ${file.name} (${formatBytes(file.size)})`;
+            document.getElementById("file-info-label").style.display = "block";
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Upload & Trigger AI Extraction";
+        } catch (err) {
+            console.error("Error reading PDF:", err);
+            alert("Failed to verify PDF structure. Make sure the file is a valid, unencrypted PDF.");
+            resetFileInput();
+            submitBtn.textContent = "Upload & Trigger AI Extraction";
+        }
+    }
+
+    function resetFileInput() {
+        selectedFile = null;
+        document.getElementById("report-file-input").value = "";
+        document.getElementById("file-info-label").textContent = "";
+        document.getElementById("file-info-label").style.display = "none";
+    }
+
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // Form Submission / Upload trigger
+    const uploadForm = document.getElementById("lab-upload-form");
+    uploadForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!selectedFile || !selectedPatientId) return;
+
+        const formData = new FormData(uploadForm);
+
+        // Adjust UI: Show split screen, load PDF viewer immediately on host browser
+        document.getElementById("split-screen-view").style.display = "grid";
+        
+        // Load PDF using Object URL in the left iframe (Local client side loading - immediate!)
+        const localURL = URL.createObjectURL(selectedFile);
+        document.getElementById("pdf-viewer-frame").src = localURL;
+
+        // Reset/Show loader
+        document.getElementById("extraction-loader").style.display = "flex";
+        document.getElementById("results-table-view").style.display = "none";
+        document.getElementById("btn-upload-submit").disabled = true;
+
+        // Submit AJAX to upload temp file and queue celery task
+        fetch("/api/lab-report/upload-temp/", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                // Task is dispatched! Start polling Celery status
+                pollCeleryTask(data.task_id);
+            } else {
+                alert("Upload failed: " + data.error);
+                document.getElementById("split-screen-view").style.display = "none";
+                document.getElementById("btn-upload-submit").disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error("Upload error:", err);
+            alert("Failed to submit request to server.");
+            document.getElementById("split-screen-view").style.display = "none";
+            document.getElementById("btn-upload-submit").disabled = false;
+        });
+    });
+
+    function pollCeleryTask(taskId) {
+        if (pollInterval) clearInterval(pollInterval);
+        
+        pollInterval = setInterval(() => {
+            fetch(`/api/lab-report/task-status/${taskId}/`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "SUCCESS") {
+                        clearInterval(pollInterval);
+                        const result = data.result;
+                        if (result.ok) {
+                            createdReportId = result.report_id;
+                            renderExtractedData(result.data);
+                        } else {
+                            alert("AI Extraction error: " + result.error);
+                            // Still show blank table so they can input manually
+                            createdReportId = result.report_id;
+                            renderExtractedData({});
+                        }
+                    } else if (data.status === "FAILURE") {
+                        clearInterval(pollInterval);
+                        alert("Background parsing worker failed.");
+                        renderExtractedData({});
+                    }
+                })
+                .catch(err => {
+                    console.error("Polling error:", err);
+                });
+        }, 2000);
+    }
+
+    function renderExtractedData(testData) {
+        document.getElementById("extraction-loader").style.display = "none";
+        document.getElementById("results-table-view").style.display = "flex";
+
+        const tbody = document.getElementById("results-table-rows");
+        tbody.innerHTML = "";
+
+        const keys = Object.keys(testData);
+        if (keys.length > 0) {
+            keys.forEach(testName => {
+                const item = testData[testName];
+                const value = item.value || "";
+                const unit = item.unit || "";
+                const ref = item.reference_interval || "";
+                
+                appendRowMarkup(testName, value, unit, ref);
+            });
+        } else {
+            // Add a default blank row if no data came back
+            addNewTableRow();
+        }
+    }
+
+    function appendRowMarkup(name, val, unit, ref) {
+        const tbody = document.getElementById("results-table-rows");
+        const tr = document.createElement("tr");
+        tr.className = "test-row";
+        tr.innerHTML = `
+            <td><input type="text" class="row-name" value="${escapeHtml(name)}" placeholder="Test Name (e.g. Hemoglobin)" required></td>
+            <td><input type="text" class="row-value" value="${escapeHtml(val)}" placeholder="Result (e.g. 15.00)" required></td>
+            <td><input type="text" class="row-unit" value="${escapeHtml(unit)}" placeholder="Unit (e.g. g/dL)"></td>
+            <td><input type="text" class="row-ref" value="${escapeHtml(ref)}" placeholder="Range (e.g. 13 - 17)"></td>
+            <td style="text-align:center;"><button type="button" class="btn-row-action" onclick="deleteTableRow(this)">❌</button></td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function addNewTableRow() {
+        appendRowMarkup("", "", "", "");
+    }
+
+    function deleteTableRow(button) {
+        const row = button.closest("tr");
+        row.remove();
+        
+        // Ensure at least one row exists
+        const tbody = document.getElementById("results-table-rows");
+        if (tbody.querySelectorAll("tr").length === 0) {
+            addNewTableRow();
+        }
+    }
+
+    // Save verified JSON to database
+    function saveVerifiedData() {
+        if (!createdReportId) {
+            alert("No report record registered in database.");
+            return;
+        }
+
+        const rows = document.querySelectorAll(".test-row");
+        const testData = {};
+
+        let hasError = false;
+        rows.forEach(row => {
+            const name = row.querySelector(".row-name").value.trim();
+            const val = row.querySelector(".row-value").value.trim();
+            const unit = row.querySelector(".row-unit").value.trim();
+            const ref = row.querySelector(".row-ref").value.trim();
+
+            if (!name) {
+                row.querySelector(".row-name").style.borderColor = "var(--danger)";
+                hasError = true;
+            } else {
+                row.querySelector(".row-name").style.borderColor = "var(--line)";
+            }
+
+            if (name) {
+                testData[name] = {
+                    "value": val,
+                    "unit": unit
+                };
+                if (ref) {
+                    testData[name]["reference_interval"] = ref;
+                }
+            }
+        });
+
+        if (hasError) {
+            alert("Please fill in test names for all rows.");
+            return;
+        }
+
+        // Post back to save
+        document.getElementById("btn-save-extracted-data").disabled = true;
+        document.getElementById("btn-save-extracted-data").textContent = "Saving...";
+
+        fetch(`/api/lab-report/save/${createdReportId}/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+            },
+            body: JSON.stringify({ "test_data": testData })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.ok) {
+                alert("Lab report clinical results saved and verified successfully!");
+                // Redirect back to dashboard
+                window.location.href = "{% url 'compounder-dashboard' %}";
+            } else {
+                alert("Save failed: " + data.error);
+                document.getElementById("btn-save-extracted-data").disabled = false;
+                document.getElementById("btn-save-extracted-data").textContent = "💾 Save & Verify Results";
+            }
+        })
+        .catch(err => {
+            console.error("Save error:", err);
+            alert("Failed to save data to server.");
+            document.getElementById("btn-save-extracted-data").disabled = false;
+            document.getElementById("btn-save-extracted-data").textContent = "💾 Save & Verify Results";
+        });
+    }
+
+    function escapeHtml(string) {
+        return String(string)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+</script>
+{% endblock %}
