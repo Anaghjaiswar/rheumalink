@@ -1,5 +1,5 @@
 from django.urls import path
-
+from services.ai_service_manager import AIServiceManager
 from . import views
 
 urlpatterns = [
@@ -14,10 +14,10 @@ urlpatterns = [
     path("api/das28/<int:appointment_id>/", views.das28_score, name="das28-score"),
     path("api/patient-medical-info/<int:patient_id>/", views.get_patient_medical_info, name="patient-medical-info"),
     path("api/patient-vitals/<int:appointment_id>/", views.get_appointment_vitals, name="patient-vitals"),
-    path("api/generate-rumat-summary/<int:appointment_id>/", views.generate_rumat_summary, name="generate-rumat-summary"),
+    path("api/generate-rumat-summary/<int:appointment_id>/", AIServiceManager.as_view(action="generate_rumat_summary"), name="generate-rumat-summary"),
     path("api/diagnosis-status/<int:appointment_id>/", views.get_diagnosis_status, name="diagnosis-status"),
-    path("api/proxy-correct-transcription/", views.proxy_correct_transcription, name="proxy-correct-transcription"),
-    path("api/proxy-structure-clinical-note/", views.proxy_structure_clinical_note, name="proxy-structure-clinical-note"),
+    path("api/proxy-correct-transcription/", AIServiceManager.as_view(action="correct_transcription"), name="proxy-correct-transcription"),
+    path("api/proxy-structure-clinical-note/", AIServiceManager.as_view(action="structure_clinical_note"), name="proxy-structure-clinical-note"),
     path("api/prescription/<int:prescription_id>/pdf/", views.download_prescription_pdf, name="download-prescription-pdf"),
     path("api/prescription/<int:prescription_id>/preview/", views.prescription_preview, name="prescription-preview"),
     path("api/prescription/<int:prescription_id>/send/", views.send_prescription_to_patient, name="send-prescription-to-patient"),
