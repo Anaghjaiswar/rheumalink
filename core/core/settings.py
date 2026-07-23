@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'patient',
     'treatment',
     'whatsapp',
+    'notification'
 ]
 
 AUTH_USER_MODEL = 'user.User'

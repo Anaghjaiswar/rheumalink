@@ -11,5 +11,7 @@ whoami
 /py/bin/python manage.py wait_for_db
 /py/bin/python manage.py collectstatic --noinput
 /py/bin/python manage.py migrate
+/py/bin/python manage.py setup_clinic
+/py/bin/python manage.py setup_minio
 
 /py/bin/python -m gunicorn --workers 4 --bind 0.0.0.0:8000 core.asgi:application -k uvicorn.workers.UvicornWorker
