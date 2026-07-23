@@ -22,12 +22,15 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'rest_framework',
     'storages',
+    'user',
     'clinic',
     'doctor',
     'patient',
     'treatment',
     'whatsapp',
 ]
+
+AUTH_USER_MODEL = 'user.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

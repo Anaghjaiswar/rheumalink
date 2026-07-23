@@ -1,7 +1,9 @@
 from datetime import date
 from django.db import models
+from user.models import User
 
-class PatientProfile(models.Model):
+
+class PatientProfile(User):
     SEX_CHOICES = [
         ('M', 'Male'),
         ('F', 'Female'),
@@ -13,28 +15,33 @@ class PatientProfile(models.Model):
         ('Free', 'Free'),
     ]
 
-    first_name = models.CharField(max_length=255, help_text="First name of the patient", verbose_name="First Name")
-    last_name = models.CharField(max_length=255, help_text="Last name of the patient", verbose_name="Last Name")    
-    date_of_birth = models.DateField(help_text="Date of birth of the patient", verbose_name="Date of Birth")
-    sex = models.CharField(max_length=1, choices=SEX_CHOICES, help_text="Sex of the patient", verbose_name="Sex")
-    contact_no = models.CharField(max_length=20, help_text="Contact number of the patient", verbose_name="Contact Number")
-    email = models.EmailField(help_text="Email address of the patient", verbose_name="Email Address")
-    type = models.CharField(max_length=10, choices=TYPE_CHOICES, help_text="Type of the patient", verbose_name="Type")
+    date_of_birth = models.DateField(help_text="Date of birth of the patient", verbose_name="Date of Birth", null=True, blank=True)
+    sex = models.CharField(max_length=1, choices=SEX_CHOICES, help_text="Sex of the patient", verbose_name="Sex", blank=True)
+    contact_no = models.CharField(max_length=20, help_text="Contact number of the patient", verbose_name="Contact Number", blank=True)
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='Regular', help_text="Type of the patient", verbose_name="Type")
     date_registered = models.DateField(auto_now_add=True, help_text="Date when the patient was registered", verbose_name="Date Registered") 
+
+    def save(self, *args, **kwargs):
+        self.role = User.Role.PATIENT
+        super().save(*args, **kwargs)
 
     def __str__(self):
         file_num = ""
         if hasattr(self, 'filerecord') and self.filerecord.internal_file_number:
             file_num = f" ({self.filerecord.internal_file_number})"
-        return f"{self.first_name} {self.last_name}{file_num} - {self.type}"
+        full_name = self.get_full_name() or self.email
+        return f"{full_name}{file_num} - {self.type}"
 
     def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}".strip()
 
     def get_age(self):
+        if not self.date_of_birth:
+            return None
         today = date.today()
         age = today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
         return age
+
     
 
 class FileRecord(models.Model):

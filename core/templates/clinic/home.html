@@ -1,0 +1,931 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology Clinic{% endif %} | Specialized Joint & Autoimmune Care</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --stone:#EDECE3;
+    --cream:#F7F5EE;
+    --ink:#1E2B27;
+    --ink-soft:#3F5750;
+    --teal:#2F5C55;
+    --teal-dark:#1B3733;
+    --sienna:#BE6A3A;
+    --sienna-soft:#E7CBB3;
+    --sage:#9FB3AA;
+    --line:rgba(30,43,39,0.14);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--stone);
+    color:var(--ink);
+    font-family:'Public Sans', sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    letter-spacing:-0.01em;
+    margin:0;
+    color:var(--teal-dark);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--sienna);
+  }
+  p{margin:0;}
+  a{color:inherit;}
+  img,svg{display:block;max-width:100%;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+  section{padding:96px 0;}
+  @media(max-width:720px){ section{padding:64px 0;} .wrap{padding:0 20px;} }
+
+  /* focus visibility */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--sienna);
+    outline-offset:3px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important;}
+  }
+
+  /* NAV */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(237,236,227,0.88);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 0;
+  }
+  .brand{display:flex; align-items:center; gap:12px; font-family:'Fraunces',serif; font-weight:600; font-size:1.15rem; color:var(--teal-dark); text-decoration:none;}
+  .brand-mark{width:56px;height:56px;flex:none;}
+  .brand-logo-img{height:75px; max-height:80px; width:auto; max-width:280px; object-fit:contain; border-radius:4px;}
+  .nav-links{display:flex; gap:28px; list-style:none; margin:0; padding:0; font-size:0.94rem; align-items:center;}
+  .nav-links a{text-decoration:none; color:var(--ink-soft); position:relative; padding:4px 0;}
+  .nav-links a:hover{color:var(--teal-dark);}
+  .staff-link{font-size:0.8rem; padding:3px 8px !important; border:1px solid var(--sage); border-radius:3px; background:rgba(255,255,255,0.4);}
+  .staff-link:hover{background:var(--cream);}
+
+  .nav-cta{
+    background:var(--teal); color:#fff; border:none; padding:11px 22px;
+    border-radius:2px; font-family:'Public Sans',sans-serif; font-weight:600; font-size:0.9rem;
+    cursor:pointer; text-decoration:none; display:inline-block;
+    transition:background 0.2s ease;
+  }
+  .nav-cta:hover{background:var(--teal-dark);}
+  .burger{display:none; background:none; border:none; cursor:pointer; padding:6px;}
+  .burger span{display:block; width:24px; height:2px; background:var(--teal-dark); margin:5px 0; transition:transform 0.25s ease, opacity 0.25s ease;}
+  .burger.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+  .burger.open span:nth-child(2){opacity:0;}
+  .burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+
+  @media(max-width:960px){
+    .nav-links{
+      position:absolute; top:100%; left:0; right:0; background:var(--cream);
+      flex-direction:column; gap:0; border-bottom:1px solid var(--line);
+      max-height:0; overflow:hidden; transition:max-height 0.3s ease;
+      align-items:stretch;
+    }
+    .nav-links.open{max-height:420px;}
+    .nav-links li{border-top:1px solid var(--line);}
+    .nav-links a{display:block; padding:14px 32px;}
+    .nav-cta{display:none;}
+    .burger{display:block;}
+  }
+
+  /* HERO */
+  .hero{padding:72px 0 40px;}
+  .hero-grid{display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:center;}
+  @media(max-width:900px){ .hero-grid{grid-template-columns:1fr;} }
+  .hero h1{font-size:clamp(2.4rem, 4.2vw, 3.6rem); line-height:1.06; margin:14px 0 22px;}
+  .hero h1 em{font-style:italic; color:var(--sienna);}
+  .hero p.lede{font-size:1.12rem; color:var(--ink-soft); max-width:46ch; margin-bottom:32px;}
+  .hero-actions{display:flex; gap:16px; flex-wrap:wrap; align-items:center;}
+  .btn-primary{
+    background:var(--teal); color:#fff; text-decoration:none; padding:15px 28px;
+    border-radius:2px; font-weight:600; font-size:0.96rem; border:none; cursor:pointer;
+    transition:background 0.2s ease, transform 0.2s ease; display:inline-block;
+  }
+  .btn-primary:hover{background:var(--teal-dark); transform:translateY(-1px);}
+  .btn-ghost{
+    text-decoration:none; color:var(--teal-dark); font-weight:600; font-size:0.96rem;
+    border-bottom:1px solid var(--teal-dark); padding-bottom:2px;
+  }
+
+  /* GONIOMETER (signature element) */
+  .goniometer-card{
+    background:var(--cream); border:1px solid var(--line); border-radius:4px;
+    padding:30px; position:relative;
+  }
+  .gonio-caption{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .gonio-readout{font-family:'IBM Plex Mono', monospace; font-size:2rem; color:var(--teal-dark);}
+  .gonio-readout span{font-size:1rem; color:var(--sage);}
+  .gonio-label{font-family:'IBM Plex Mono', monospace; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-soft);}
+  #gonioSvg{width:100%; height:auto;}
+  .gonio-note{margin-top:10px; font-size:0.85rem; color:var(--ink-soft);}
+
+  /* SECTION HEADERS */
+  .section-head{max-width:640px; margin-bottom:52px;}
+  .section-head h2{font-size:clamp(1.8rem, 3vw, 2.4rem); margin-top:10px;}
+  .section-head p{color:var(--ink-soft); margin-top:14px; font-size:1.03rem;}
+
+  /* CONDITIONS */
+  .conditions-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line);
+    border:1px solid var(--line);
+  }
+  @media(max-width:860px){ .conditions-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:560px){ .conditions-grid{grid-template-columns:1fr;} }
+  .condition-card{
+    background:var(--cream); padding:32px 28px; min-height:190px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .condition-card svg{width:34px; height:34px; stroke:var(--teal); fill:none; stroke-width:1.5;}
+  .condition-card h3{font-size:1.08rem; font-weight:600; font-family:'Public Sans',sans-serif; color:var(--teal-dark);}
+  .condition-card p{font-size:0.92rem; color:var(--ink-soft);}
+
+  /* PROCESS */
+  .process{background:var(--teal-dark); color:var(--stone);}
+  .process .section-head h2, .process .eyebrow{color:var(--stone);}
+  .process .section-head p{color:var(--sage);}
+  .process-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:28px;}
+  @media(max-width:900px){ .process-grid{grid-template-columns:repeat(2,1fr);} }
+  @media(max-width:560px){ .process-grid{grid-template-columns:1fr;} }
+  .process-step{border-top:1px solid rgba(247,245,238,0.25); padding-top:20px;}
+  .process-step .num{font-family:'IBM Plex Mono', monospace; color:var(--sienna); font-size:0.9rem;}
+  .process-step h3{font-family:'Fraunces',serif; font-weight:500; font-size:1.2rem; margin:10px 0 10px; color:#fff;}
+  .process-step p{font-size:0.92rem; color:var(--sage);}
+
+  /* PHYSICIAN */
+  .physician-wrapper{display:flex; flex-direction:column; gap:48px;}
+  .physician{display:grid; grid-template-columns:0.8fr 1.2fr; gap:56px; align-items:center;}
+  @media(max-width:860px){ .physician{grid-template-columns:1fr;} }
+  .physician-portrait{
+    aspect-ratio:4/5; background:linear-gradient(160deg, var(--sage), var(--teal));
+    border-radius:4px; position:relative; overflow:hidden;
+  }
+  .physician-portrait img{width:100%; height:100%; object-fit:cover;}
+  .physician-portrait svg{position:absolute; inset:0; width:100%; height:100%;}
+  .physician-quote{font-family:'Fraunces',serif; font-style:italic; font-size:1.35rem; color:var(--teal-dark); line-height:1.4;}
+  .physician-name{margin-top:22px; font-weight:600; font-size:1.1rem;}
+  .physician-role{color:var(--ink-soft); font-size:0.9rem; margin-top:4px;}
+  .physician-badge{display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:var(--sienna); background:var(--sienna-soft); padding:3px 8px; border-radius:2px; margin-top:8px;}
+
+  /* TESTIMONIALS */
+  .testimonial-wrap{position:relative; max-width:760px;}
+  .testimonial{display:none; animation:fadeIn 0.5s ease;}
+  .testimonial.active{display:block;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  .testimonial blockquote{
+    font-family:'Fraunces',serif; font-size:1.5rem; font-weight:500; line-height:1.4;
+    margin:0 0 20px; color:var(--teal-dark);
+  }
+  .testimonial cite{font-style:normal; font-size:0.9rem; color:var(--ink-soft);}
+  .testi-dots{display:flex; gap:10px; margin-top:32px;}
+  .testi-dots button{
+    width:9px; height:9px; border-radius:50%; border:1px solid var(--teal);
+    background:transparent; cursor:pointer; padding:0;
+  }
+  .testi-dots button.active{background:var(--teal);}
+
+  /* FAQ */
+  .faq-item{border-top:1px solid var(--line);}
+  .faq-item:last-child{border-bottom:1px solid var(--line);}
+  .faq-q{
+    width:100%; text-align:left; background:none; border:none; cursor:pointer;
+    padding:22px 0; display:flex; justify-content:space-between; align-items:center;
+    font-family:'Public Sans',sans-serif; font-weight:600; font-size:1.02rem; color:var(--teal-dark);
+  }
+  .faq-q .plus{font-family:'IBM Plex Mono',monospace; font-size:1.1rem; color:var(--sienna); transition:transform 0.25s ease;}
+  .faq-item.open .faq-q .plus{transform:rotate(45deg);}
+  .faq-a{max-height:0; overflow:hidden; transition:max-height 0.3s ease;}
+  .faq-a p{padding-bottom:22px; color:var(--ink-soft); max-width:70ch;}
+
+  /* APPOINTMENT FORM */
+  .appointment{background:var(--cream); border:1px solid var(--line); border-radius:4px; padding:48px;}
+  @media(max-width:600px){ .appointment{padding:28px;} }
+  .appt-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:32px;}
+  @media(max-width:640px){ .appt-grid{grid-template-columns:1fr;} }
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:0.82rem; font-weight:600; color:var(--teal-dark);}
+  .field input, .field select, .field textarea{
+    border:1px solid var(--line); background:#fff; padding:12px 14px; border-radius:2px;
+    font-family:'Public Sans',sans-serif; font-size:0.96rem; color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:90px;}
+  .field small.err{color:var(--sienna); font-size:0.78rem; display:none;}
+  .field.invalid input, .field.invalid select{border-color:var(--sienna);}
+  .field.invalid small.err{display:block;}
+  .appt-submit{margin-top:14px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .form-note{font-size:0.82rem; color:var(--ink-soft);}
+  .badge-regular{font-family:'IBM Plex Mono',monospace; font-size:0.75rem; background:var(--teal); color:#fff; padding:2px 8px; border-radius:2px; display:inline-block; margin-left:6px;}
+
+  .success-panel{display:none; text-align:center; padding:30px 20px;}
+  .success-panel.show{display:block;}
+  .success-panel svg{width:56px; height:56px; margin:0 auto 16px; stroke:var(--teal);}
+  .success-panel h3{font-family:'Fraunces',serif; color:var(--teal-dark); margin-bottom:8px; font-size:1.6rem;}
+  .success-panel p{color:var(--ink-soft); margin-bottom:20px;}
+  .ticket-card{
+    background:#fff; border:1px dashed var(--teal); border-radius:6px; padding:20px; max-width:440px; margin:0 auto 24px; text-align:left;
+  }
+  .ticket-row{display:flex; justify-content:space-between; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line);}
+  .ticket-label{font-size:0.82rem; color:var(--ink-soft); text-transform:uppercase; font-family:'IBM Plex Mono',monospace;}
+  .ticket-val{font-weight:700; color:var(--teal-dark);}
+
+  /* FOOTER */
+  footer{background:var(--teal-dark); color:var(--sage); padding:56px 0 30px;}
+  .footer-grid{display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:40px; padding-bottom:36px; border-bottom:1px solid rgba(247,245,238,0.15);}
+  @media(max-width:720px){ .footer-grid{grid-template-columns:1fr; gap:28px;} }
+  footer h4{font-family:'IBM Plex Mono',monospace; font-size:0.75rem; letter-spacing:0.1em; text-transform:uppercase; color:#fff; margin-bottom:14px;}
+  footer .brand{color:#fff;}
+  footer p, footer a{color:var(--sage); font-size:0.92rem; text-decoration:none;}
+  footer ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
+  .footer-bottom{padding-top:22px; display:flex; justify-content:space-between; font-size:0.8rem; flex-wrap:wrap; gap:10px;}
+
+  .reveal{opacity:0; transform:translateY(18px); transition:opacity 0.6s ease, transform 0.6s ease;}
+  .reveal.in{opacity:1; transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a href="#top" class="brand" aria-label="{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology Clinic{% endif %}">
+      {% if clinic and clinic.logo %}
+        <img src="{{ clinic.logo.url }}" alt="{{ clinic.name }}" class="brand-logo-img">
+      {% else %}
+        <svg class="brand-mark" viewBox="0 0 32 32" fill="none" stroke="var(--teal)" stroke-width="1.6">
+          <path d="M16 28 A12 12 0 0 1 4 16" stroke-linecap="round"/>
+          <path d="M16 28 A12 12 0 0 0 28 16" stroke-linecap="round" stroke="var(--sienna)"/>
+          <line x1="16" y1="28" x2="16" y2="8" stroke-linecap="round"/>
+          <circle cx="16" cy="28" r="2.2" fill="var(--teal)" stroke="none"/>
+        </svg>
+      {% endif %}
+    </a>
+    <nav>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#conditions">Conditions</a></li>
+        <li><a href="#process">Our approach</a></li>
+        <li><a href="#physician">Physicians</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#appointment">Book a visit</a></li>
+        <li><a href="{% url 'compounder-dashboard' %}" class="staff-link">Compounder Desk</a></li>
+        <li><a href="{% url 'doctor-dashboard' %}" class="staff-link">Doctor Desk</a></li>
+      </ul>
+    </nav>
+    <a href="#appointment" class="nav-cta">Book a visit</a>
+    <button class="burger" id="burgerBtn" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow">Rheumatology &amp; autoimmune joint care</p>
+        <h1>We measure what hurts, <em>then we move it.</em></h1>
+        <p class="lede">{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology{% endif %} diagnoses the conditions behind joint pain, stiffness, and fatigue — rheumatoid arthritis, lupus, gout, and more — and builds a treatment plan around restoring your range of motion, not just naming your symptoms.</p>
+        <div class="hero-actions">
+          <a href="#appointment" class="btn-primary">Book a consultation</a>
+          <a href="#conditions" class="btn-ghost">See conditions we treat</a>
+        </div>
+      </div>
+      <div class="goniometer-card reveal">
+        <div class="gonio-caption">
+          <span class="gonio-label">Knee flexion · live measurement</span>
+        </div>
+        <div class="gonio-readout"><span id="gonioNum">18</span><span>°</span></div>
+        <svg id="gonioSvg" viewBox="0 0 360 220" aria-hidden="true">
+          <path d="M20 200 A160 160 0 0 1 340 200" fill="none" stroke="var(--sage)" stroke-width="1"/>
+          <g id="ticks"></g>
+          <line x1="180" y1="200" x2="20" y2="200" stroke="var(--line)" stroke-width="2"/>
+          <line id="needle" x1="180" y1="200" x2="60" y2="200" stroke="var(--sienna)" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="180" cy="200" r="5" fill="var(--teal-dark)"/>
+        </svg>
+        <p class="gonio-note">Restoring functional range is the goal of every plan we write — not just a lower pain score.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONDITIONS -->
+  <section id="conditions">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="eyebrow">What we treat</p>
+        <h2>Complex conditions, explained plainly</h2>
+        <p>Joint and autoimmune conditions rarely show up as a single symptom. We look at the whole pattern — labs, imaging, and how you actually move — before we name anything.</p>
+      </div>
+      <div class="conditions-grid reveal">
+        <div class="condition-card">
+          <svg viewBox="0 0 24 24"><path d="M12 2v6M12 22v-4M4 12H2M22 12h-2M6 6l2 2M18 6l-2 2M6 18l2-2M18 18l-2-2"/><circle cx="12" cy="12" r="4"/></svg>
+          <h3>Rheumatoid arthritis</h3>
+          <p>Autoimmune joint inflammation, typically symmetric, that can erode cartilage and bone without early treatment.</p>
+        </div>
+        <div class="condition-card">
+          <svg viewBox="0 0 24 24"><path d="M12 3c4 0 7 3 7 7 0 5-7 11-7 11S5 15 5 10c0-4 3-7 7-7z"/></svg>
+          <h3>Lupus (SLE)</h3>
+          <p>A systemic autoimmune disease that can affect skin, joints, kidneys, and blood — we coordinate care across all of it.</p>
+        </div>
+        <div class="condition-card">
+          <svg viewBox="0 0 24 24"><path d="M12 20c4-6 6-9 6-12a6 6 0 1 0-12 0c0 3 2 6 6 12z"/><circle cx="12" cy="8" r="2"/></svg>
+          <h3>Gout</h3>
+          <p>Sudden, severe joint attacks driven by uric acid crystals — we manage flares and the metabolics behind them.</p>
+        </div>
+        <div class="condition-card">
+          <svg viewBox="0 0 24 24"><path d="M4 12h16M4 12a4 4 0 0 1 4-4M20 12a4 4 0 0 1-4 4M8 8V4M16 16v4"/></svg>
+          <h3>Osteoarthritis</h3>
+          <p>Cartilage wear at load-bearing joints. We combine imaging with movement assessment to slow its progress.</p>
+        </div>
+        <div class="condition-card">
+          <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/></svg>
+          <h3>Ankylosing spondylitis</h3>
+          <p>Inflammatory stiffening of the spine and pelvis. Early diagnosis keeps mobility on the table longer.</p>
+        </div>
+        <div class="condition-card">
+          <svg viewBox="0 0 24 24"><path d="M12 2l3 6 6 1-4.5 4 1 6L12 16l-5.5 3 1-6L3 9l6-1 3-6z"/></svg>
+          <h3>Psoriatic arthritis</h3>
+          <p>Joint and skin disease that travel together — treatment plans address both at once, not separately.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROCESS -->
+  <section id="process" class="process">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="eyebrow">How a first visit unfolds</p>
+        <h2>Four visits, one continuous read on your joints</h2>
+        <p>Autoimmune disease shifts over time, so the process doesn't end at diagnosis — it repeats, deliberately, for as long as you need us.</p>
+      </div>
+      <div class="process-grid reveal">
+        <div class="process-step">
+          <span class="num">01</span>
+          <h3>Consult</h3>
+          <p>We map your symptom history, family history, and what a bad day actually feels like — in your words first.</p>
+        </div>
+        <div class="process-step">
+          <span class="num">02</span>
+          <h3>Assess</h3>
+          <p>Bloodwork, imaging, and a hands-on joint exam, including goniometry to measure exact range of motion.</p>
+        </div>
+        <div class="process-step">
+          <span class="num">03</span>
+          <h3>Diagnose</h3>
+          <p>We walk through the differential with you, plainly, before we commit to a label or a treatment path.</p>
+        </div>
+        <div class="process-step">
+          <span class="num">04</span>
+          <h3>Treat &amp; monitor</h3>
+          <p>A plan built around your flares, with scheduled check-ins to adjust it as your disease — or your life — changes.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHYSICIAN -->
+  <section id="physician">
+    <div class="wrap">
+      <div class="section-head reveal" style="margin-bottom:36px;">
+        <p class="eyebrow">Medical Team</p>
+        <h2>Our Specialist Physicians</h2>
+      </div>
+      <div class="physician-wrapper">
+        {% if doctors %}
+          {% for doctor in doctors %}
+          <div class="physician reveal">
+            <div class="physician-portrait">
+              {% if doctor.photo %}
+                <img src="{{ doctor.photo.url }}" alt="{{ doctor.get_full_name }}">
+              {% else %}
+                <svg viewBox="0 0 300 380" preserveAspectRatio="xMidYMid slice">
+                  <rect width="300" height="380" fill="var(--teal)"/>
+                  <circle cx="150" cy="150" r="70" fill="var(--cream)" opacity="0.9"/>
+                  <path d="M60 380c0-70 40-120 90-120s90 50 90 120z" fill="var(--cream)" opacity="0.9"/>
+                </svg>
+              {% endif %}
+            </div>
+            <div>
+              <p class="eyebrow">Attending Physician</p>
+              <p class="physician-quote">"A joint isn't a number on a chart. It's whether you can sit cross-legged for a puja again, or manage the stairs to your own terrace. We treat toward that."</p>
+              <p class="physician-name">{{ doctor.get_full_name }}</p>
+              <p class="physician-role">
+                {% if doctor.highest_qualification %}{{ doctor.highest_qualification }}{% endif %}
+                {% if doctor.specialization %} · {{ doctor.specialization }}{% endif %}
+                {% if doctor.years_of_experience %} · {{ doctor.years_of_experience }} years in autoimmune &amp; joint care{% endif %}
+              </p>
+              {% if doctor.contact_no %}
+                <span class="physician-badge">Direct Line: {{ doctor.contact_no }}</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="physician reveal">
+            <div class="physician-portrait">
+              <svg viewBox="0 0 300 380" preserveAspectRatio="xMidYMid slice">
+                <rect width="300" height="380" fill="var(--teal)"/>
+                <circle cx="150" cy="150" r="70" fill="var(--cream)" opacity="0.9"/>
+                <path d="M60 380c0-70 40-120 90-120s90 50 90 120z" fill="var(--cream)" opacity="0.9"/>
+              </svg>
+            </div>
+            <div>
+              <p class="eyebrow">Lead physician</p>
+              <p class="physician-quote">"A joint isn't a number on a chart. It's whether you can sit cross-legged for a puja again, or manage the stairs to your own terrace. We treat toward that."</p>
+              <p class="physician-name">Dr. Ananya Deshmukh, MBBS, MD, DM (Rheumatology)</p>
+              <p class="physician-role">Senior Consultant Rheumatologist · NMC Reg. No. HR-48213 · 14 years in autoimmune &amp; joint disease</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="testimonials">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="eyebrow">In patients' words</p>
+        <h2>What changes after the first few months</h2>
+      </div>
+      <div class="testimonial-wrap reveal">
+        <div class="testimonial active">
+          <blockquote>"I'd been told my knees were just 'getting old' for three years. Dr. Deshmukh found the RA in one visit, and I can sit on the floor for aarti again."</blockquote>
+          <cite>— Meera Nair, treated for rheumatoid arthritis</cite>
+        </div>
+        <div class="testimonial">
+          <blockquote>"The flare plan meant I finally knew what to do at 2am instead of just waiting it out at home with a hot water bag. That alone changed how I sleep."</blockquote>
+          <cite>— Arjun Kapoor, treated for gout</cite>
+        </div>
+        <div class="testimonial">
+          <blockquote>"They treated my skin and my joints as one condition instead of sending me between a dermatologist and an orthopaedic. It's the first plan that's actually held together."</blockquote>
+          <cite>— Priya Iyer, treated for psoriatic arthritis</cite>
+        </div>
+        <div class="testi-dots" id="testiDots"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="eyebrow">Before you book</p>
+        <h2>Common questions</h2>
+      </div>
+      <div class="reveal" style="max-width:760px;">
+        <div class="faq-item">
+          <button class="faq-q" aria-expanded="false">Do I need a referral to be seen?<span class="plus">+</span></button>
+          <div class="faq-a"><p>No referral is required for a first consultation — you can walk in or book directly. We're happy to coordinate with your family physician before or after your visit.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" aria-expanded="false">Do you accept cashless treatment and insurance?<span class="plus">+</span></button>
+          <div class="faq-a"><p>Yes. We're empanelled with most major TPAs for cashless treatment, and our front desk can help you check eligibility before your visit.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" aria-expanded="false">What should I bring to my first appointment?<span class="plus">+</span></button>
+          <div class="faq-a"><p>Recent bloodwork or imaging if you have it, a list of current medications, and notes on when your symptoms are worst — mornings, after activity, or during flares.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" aria-expanded="false">How long does diagnosis usually take?<span class="plus">+</span></button>
+          <div class="faq-a"><p>Some conditions, like gout, are confirmed in a single visit. Autoimmune diseases with overlapping symptoms, like lupus, can take several weeks of lab work to confirm properly — we'll tell you which situation you're in early on.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-q" aria-expanded="false">Do you treat flares outside of scheduled visits?<span class="plus">+</span></button>
+          <div class="faq-a"><p>Yes. Active patients get a direct line for flare triage so a bad week doesn't have to wait for the next scheduled OPD appointment.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- APPOINTMENT -->
+  <section id="appointment">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <p class="eyebrow">Book a visit</p>
+        <h2>Tell us where it hurts, and since when</h2>
+        <p>Reserve your appointment slot. Our system automatically registers your patient profile <span class="badge-regular">Regular Mode</span> and assigns your consulting doctor.</p>
+      </div>
+      <div class="appointment reveal">
+        <form id="apptForm" method="POST" action="{% url 'api-book-appointment' %}" novalidate>
+          {% csrf_token %}
+          <div class="appt-grid">
+            <div class="field" data-field="name">
+              <label for="name">Full name *</label>
+              <input type="text" id="name" name="name" autocomplete="name" placeholder="e.g. Anish Kumar">
+              <small class="err">Please enter your full name.</small>
+            </div>
+            <div class="field" data-field="phone">
+              <label for="phone">Phone number *</label>
+              <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="+91 98765 43210">
+              <small class="err">Please enter a valid phone number.</small>
+            </div>
+            <div class="field" data-field="email">
+              <label for="email">Email address</label>
+              <input type="email" id="email" name="email" autocomplete="email" placeholder="anish@example.com">
+              <small class="err">Please enter a valid email address.</small>
+            </div>
+            <div class="field" data-field="date">
+              <label for="date">Preferred date *</label>
+              <input type="date" id="date" name="date" value="{{ today_date }}" min="{{ today_date }}">
+              <small class="err">Please choose a preferred visit date.</small>
+            </div>
+            <div class="field" data-field="doctor">
+              <label for="doctor">Select Consulting Doctor</label>
+              <select id="doctor" name="doctor_id">
+                {% if doctors %}
+                  {% for doc in doctors %}
+                    <option value="{{ doc.id }}" {% if forloop.first %}selected{% endif %}>{{ doc.get_full_name }} ({% if doc.specialization %}{{ doc.specialization }}{% else %}Rheumatology{% endif %})</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="">Dr. Ananya Deshmukh (Senior Consultant Rheumatologist)</option>
+                {% endif %}
+              </select>
+            </div>
+            <div class="field" data-field="time">
+              <label for="time">Preferred Time Slot</label>
+              <select id="time" name="time">
+                <option value="09:00">09:00 AM - Morning Queue</option>
+                <option value="10:30">10:30 AM - Morning Queue</option>
+                <option value="12:00">12:00 PM - Afternoon Queue</option>
+                <option value="16:00">04:00 PM - Evening Queue</option>
+                <option value="17:30">05:30 PM - Evening Queue</option>
+              </select>
+            </div>
+            <div class="field" data-field="sex">
+              <label for="sex">Sex (Optional)</label>
+              <select id="sex" name="sex">
+                <option value="">Select Sex</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="O">Other</option>
+              </select>
+            </div>
+            <div class="field" data-field="dob">
+              <label for="dob">Date of Birth (Optional)</label>
+              <input type="date" id="dob" name="date_of_birth">
+            </div>
+            <div class="field full" data-field="reason">
+              <label for="reason">Primary concern *</label>
+              <select id="reason" name="reason">
+                <option value="">Select primary symptom / concern</option>
+                <option>Joint pain or swelling</option>
+                <option>Suspected rheumatoid arthritis</option>
+                <option>Lupus or other autoimmune symptoms</option>
+                <option>Gout flare</option>
+                <option>Ongoing osteoarthritis</option>
+                <option>Second opinion</option>
+                <option>Something else</option>
+              </select>
+              <small class="err">Please select your primary concern.</small>
+            </div>
+            <div class="field full">
+              <label for="notes">Anything else we should know? (optional)</label>
+              <textarea id="notes" name="notes" placeholder="Symptom timing, current medications, mobility limits…"></textarea>
+            </div>
+          </div>
+          <div class="appt-submit">
+            <button type="submit" class="btn-primary" id="submitBtn">Confirm &amp; Book Appointment</button>
+            <span class="form-note">Mode: <strong>Regular</strong> · Instant queue token assignment.</span>
+          </div>
+        </form>
+        <div class="success-panel" id="successPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3>Appointment Confirmed!</h3>
+          <p>Your visit has been registered in our clinic queue system.</p>
+          
+          <div class="ticket-card">
+            <div class="ticket-row">
+              <span class="ticket-label">Queue Token</span>
+              <span class="ticket-val" id="resToken">#--</span>
+            </div>
+            <div class="ticket-row">
+              <span class="ticket-label">File Record ID</span>
+              <span class="ticket-val" id="resFileNum">RL-------</span>
+            </div>
+            <div class="ticket-row">
+              <span class="ticket-label">Patient Name</span>
+              <span class="ticket-val" id="resPatient">--</span>
+            </div>
+            <div class="ticket-row">
+              <span class="ticket-label">Assigned Doctor</span>
+              <span class="ticket-val" id="resDoctor">--</span>
+            </div>
+            <div class="ticket-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+              <span class="ticket-label">Scheduled Date &amp; Time</span>
+              <span class="ticket-val" id="resDateTime">--</span>
+            </div>
+          </div>
+
+          <button type="button" class="btn-primary" onclick="window.location.reload();">Book Another Visit</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a href="#top" class="brand">
+          {% if clinic and clinic.logo %}
+            <img src="{{ clinic.logo.url }}" alt="{{ clinic.name }}" class="brand-logo-img">
+          {% else %}
+            <svg class="brand-mark" viewBox="0 0 32 32" fill="none" stroke="#fff" stroke-width="1.6">
+              <path d="M16 28 A12 12 0 0 1 4 16" stroke-linecap="round"/>
+              <path d="M16 28 A12 12 0 0 0 28 16" stroke-linecap="round" stroke="var(--sienna)"/>
+              <line x1="16" y1="28" x2="16" y2="8" stroke-linecap="round"/>
+              <circle cx="16" cy="28" r="2.2" fill="#fff" stroke="none"/>
+            </svg>
+          {% endif %}
+          <span>{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology{% endif %}</span>
+        </a>
+        <p style="margin-top:14px; max-width:32ch;">Rheumatology and autoimmune joint care, built around how you actually move.</p>
+      </div>
+      <div>
+        <h4>Clinic Location</h4>
+        <ul>
+          {% if clinic and clinic.address %}
+            <li>{{ clinic.address.line1 }}{% if clinic.address.line2 %}, {{ clinic.address.line2 }}{% endif %}</li>
+            <li>{{ clinic.address.city }}, {{ clinic.address.state }} {{ clinic.address.zip_code }}</li>
+          {% else %}
+            <li>3rd Floor, Vatika Business Centre</li>
+            <li>Sector 44, Gurugram, Haryana 122003</li>
+          {% endif %}
+          <li>Mon–Sat, 9am–6pm (OPD Hours)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Contact &amp; Staff</h4>
+        <ul>
+          {% if clinic and clinic.contact_number %}
+            <li><a href="tel:{{ clinic.contact_number }}">{{ clinic.contact_number }}</a></li>
+          {% else %}
+            <li><a href="tel:+919876543210">+91 98765 43210</a></li>
+          {% endif %}
+          {% if clinic and clinic.contact_email %}
+            <li><a href="mailto:{{ clinic.contact_email }}">{{ clinic.contact_email }}</a></li>
+          {% else %}
+            <li><a href="mailto:hello@sandhirheum.example">hello@sandhirheum.example</a></li>
+          {% endif %}
+          <li><a href="{% url 'compounder-dashboard' %}">Compounder Queue Dashboard</a></li>
+          <li><a href="{% url 'doctor-dashboard' %}">Doctor Consultation Portal</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© {% now "Y" %} {% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology Clinic{% endif %}. All rights reserved.</span>
+      <span>This portal does not replace emergency medical care. In an emergency, call 112.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Mobile nav ---------- */
+  var burger = document.getElementById('burgerBtn');
+  var navLinks = document.getElementById('navLinks');
+  if(burger && navLinks){
+    burger.addEventListener('click', function(){
+      var isOpen = navLinks.classList.toggle('open');
+      burger.classList.toggle('open', isOpen);
+      burger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+    navLinks.querySelectorAll('a').forEach(function(link){
+      link.addEventListener('click', function(){
+        navLinks.classList.remove('open');
+        burger.classList.remove('open');
+        burger.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  /* ---------- Scroll reveal ---------- */
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var revealEls = document.querySelectorAll('.reveal');
+  if (prefersReduced || !('IntersectionObserver' in window)) {
+    revealEls.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(function(el){ io.observe(el); });
+  }
+
+  /* ---------- Goniometer signature animation ---------- */
+  var ticksGroup = document.getElementById('ticks');
+  if(ticksGroup){
+    var cx = 180, cy = 200, r = 160;
+    for (var d = 0; d <= 180; d += 20) {
+      var rad = (Math.PI / 180) * d;
+      var x1 = cx - Math.cos(rad) * r;
+      var y1 = cy - Math.sin(rad) * r;
+      var x2 = cx - Math.cos(rad) * (r - 10);
+      var y2 = cy - Math.sin(rad) * (r - 10);
+      var tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      tick.setAttribute('x1', x1); tick.setAttribute('y1', y1);
+      tick.setAttribute('x2', x2); tick.setAttribute('y2', y2);
+      tick.setAttribute('stroke', 'var(--sage)');
+      tick.setAttribute('stroke-width', '1.5');
+      ticksGroup.appendChild(tick);
+    }
+  }
+
+  var needle = document.getElementById('needle');
+  var gonioNum = document.getElementById('gonioNum');
+  var needleLen = 130;
+
+  function setNeedleAngle(deg){
+    if(!needle) return;
+    var rad = (Math.PI / 180) * deg;
+    var x2 = 180 - Math.cos(rad) * needleLen;
+    var y2 = 200 - Math.sin(rad) * needleLen;
+    needle.setAttribute('x2', x2);
+    needle.setAttribute('y2', y2);
+  }
+
+  function animateGoniometer(){
+    if (prefersReduced) { setNeedleAngle(140); if(gonioNum) gonioNum.textContent = '140'; return; }
+    var start = 18, end = 142, duration = 2200, startTime = null;
+    function step(ts){
+      if (!startTime) startTime = ts;
+      var progress = Math.min((ts - startTime) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.round(start + (end - start) * eased);
+      setNeedleAngle(current);
+      if(gonioNum) gonioNum.textContent = current;
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    setNeedleAngle(start);
+    requestAnimationFrame(step);
+  }
+  setNeedleAngle(18);
+  window.addEventListener('load', function(){ setTimeout(animateGoniometer, 400); });
+
+  /* ---------- Testimonial rotator ---------- */
+  var testimonials = document.querySelectorAll('.testimonial');
+  var dotsWrap = document.getElementById('testiDots');
+  var current = 0, testiTimer;
+
+  if(testimonials.length > 0 && dotsWrap){
+    testimonials.forEach(function(t, i){
+      var dot = document.createElement('button');
+      dot.setAttribute('aria-label', 'Show testimonial ' + (i + 1));
+      if (i === 0) dot.classList.add('active');
+      dot.addEventListener('click', function(){ showTestimonial(i); resetTimer(); });
+      dotsWrap.appendChild(dot);
+    });
+
+    function showTestimonial(index){
+      testimonials[current].classList.remove('active');
+      if(dotsWrap.children[current]) dotsWrap.children[current].classList.remove('active');
+      current = index;
+      testimonials[current].classList.add('active');
+      if(dotsWrap.children[current]) dotsWrap.children[current].classList.add('active');
+    }
+
+    function resetTimer(){
+      clearInterval(testiTimer);
+      testiTimer = setInterval(function(){
+        showTestimonial((current + 1) % testimonials.length);
+      }, 6000);
+    }
+    resetTimer();
+  }
+
+  /* ---------- FAQ accordion ---------- */
+  document.querySelectorAll('.faq-item').forEach(function(item){
+    var btn = item.querySelector('.faq-q');
+    var answer = item.querySelector('.faq-a');
+    if(!btn || !answer) return;
+    btn.addEventListener('click', function(){
+      var isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(function(openItem){
+        if (openItem !== item) {
+          openItem.classList.remove('open');
+          openItem.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
+          openItem.querySelector('.faq-a').style.maxHeight = null;
+        }
+      });
+      item.classList.toggle('open', !isOpen);
+      btn.setAttribute('aria-expanded', (!isOpen).toString());
+      answer.style.maxHeight = !isOpen ? answer.scrollHeight + 'px' : null;
+    });
+  });
+
+  /* ---------- Appointment AJAX form handling ---------- */
+  var form = document.getElementById('apptForm');
+  var successPanel = document.getElementById('successPanel');
+  var submitBtn = document.getElementById('submitBtn');
+
+  function validateField(fieldEl){
+    var input = fieldEl.querySelector('input, select');
+    if (!input) return true;
+    var valid = true;
+    if (input.type === 'email' && input.value.trim() !== '') {
+      valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value.trim());
+    } else if (input.hasAttribute('id') && (input.id === 'name' || input.id === 'phone' || input.id === 'date' || input.id === 'reason')) {
+      valid = input.value.trim().length > 0;
+    }
+    fieldEl.classList.toggle('invalid', !valid);
+    return valid;
+  }
+
+  if(form){
+    form.querySelectorAll('.field[data-field] input, .field[data-field] select').forEach(function(input){
+      input.addEventListener('blur', function(){
+        validateField(input.closest('.field'));
+      });
+    });
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fields = form.querySelectorAll('.field[data-field]');
+      var allValid = true;
+      fields.forEach(function(f){
+        if (!validateField(f)) allValid = false;
+      });
+
+      if (!allValid) {
+        var firstInvalid = form.querySelector('.field.invalid input, .field.invalid select');
+        if (firstInvalid) firstInvalid.focus();
+        return;
+      }
+
+      if(submitBtn){
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Registering Visit...';
+      }
+
+      var formData = new FormData(form);
+
+      fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if(data.status === 'success'){
+          document.getElementById('resToken').textContent = '#' + data.token_number;
+          document.getElementById('resFileNum').textContent = data.file_number;
+          document.getElementById('resPatient').textContent = data.patient_name;
+          document.getElementById('resDoctor').textContent = data.doctor_name;
+          document.getElementById('resDateTime').textContent = data.appointment_date + ' at ' + data.appointment_time;
+
+          form.style.display = 'none';
+          successPanel.classList.add('show');
+        } else {
+          alert('Error: ' + (data.message || 'Could not register appointment.'));
+          if(submitBtn){
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Confirm & Book Appointment';
+          }
+        }
+      })
+      .catch(function(err){
+        console.error(err);
+        alert('An unexpected error occurred. Please check network connection.');
+        if(submitBtn){
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Confirm & Book Appointment';
+        }
+      });
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

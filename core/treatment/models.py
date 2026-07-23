@@ -25,21 +25,21 @@ class Appointment(models.Model):
     updated_at = models.DateTimeField(auto_now=True, help_text="Date and time when the appointment was last updated", verbose_name="Updated At")
 
     def __str__(self):
-        return f"Appointment for {self.patient.get_full_name()} with Dr. {self.doctor.get_full_name() if self.doctor else 'N/A'} on {self.appointment_date} at {self.appointment_time} | Status: {self.get_status_display()}"
+        doctor_str = self.doctor.get_full_name() if self.doctor else 'N/A'
+        return f"Appointment for {self.patient.get_full_name()} with {doctor_str} on {self.appointment_date} at {self.appointment_time} | Status: {self.get_status_display()}"
     
     def generate_token_number(self):
         """
-        Simpler logic: Works with provided setup. 
         Ensures daily reset and doctor-specific queue.
+        Uses atomic transaction & row locking to handle concurrent token generation.
         """
-        max_t = Appointment.objects.filter(
-            appointment_date=self.appointment_date,
-            doctor=self.doctor
-        ).aggregate(Max('token_number'))['token_number__max']
-        
-        return (max_t or 0) + 1
-
-
+        with transaction.atomic():
+            max_t = Appointment.objects.select_for_update().filter(
+                appointment_date=self.appointment_date,
+                doctor=self.doctor
+            ).aggregate(Max('token_number'))['token_number__max']
+            
+            return (max_t or 0) + 1
 
     def save(self, *args, **kwargs):
         if self.pk:

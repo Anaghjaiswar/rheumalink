@@ -11,6 +11,12 @@ class BaseMinioStorage(S3Storage):
 class ClinicLogoStorage(BaseMinioStorage):
     bucket_name = 'clinic-logos'
 
+    def __init__(self, *args, **kwargs):
+        kwargs['querystring_auth'] = False
+        super().__init__(*args, **kwargs)
+        self.querystring_auth = False
+
+
 class LabReportStorage(BaseMinioStorage):
     bucket_name = 'lab-reports'
 
@@ -19,3 +25,13 @@ class PrescriptionStorage(BaseMinioStorage):
 
 class PatientDocumentStorage(BaseMinioStorage):
     bucket_name = 'patient-documents'
+
+class DoctorPhotoStorage(BaseMinioStorage):
+    bucket_name = 'doctor-photos'
+
+    def __init__(self, *args, **kwargs):
+        kwargs['querystring_auth'] = False
+        super().__init__(*args, **kwargs)
+        self.querystring_auth = False
+
+
