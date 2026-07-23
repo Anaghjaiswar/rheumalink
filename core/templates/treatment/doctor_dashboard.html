@@ -4,9 +4,30 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--line);">
   <h2 style="margin: 0; font-family: var(--font-title);">Doctor Desk</h2>
-  <a href="{% url 'upload-lab-report-page' %}" class="button" style="background-color: var(--accent); border-color: var(--accent); color: white; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin: 0;">
-    🔬 Upload Patient Lab Reports
-  </a>
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <!-- Notification Bell Icon -->
+    <div style="position: relative; display: inline-block;">
+      <button id="notif-bell-btn" type="button" class="button alt" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; margin: 0; border-radius: 50%; position: relative; font-size: 1.2rem; cursor: pointer; background: var(--panel); border: 1px solid var(--line);" title="Notifications">
+        🔔
+        <span id="notif-badge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--danger, #9f2d2d); color: white; font-size: 0.7rem; font-weight: bold; border-radius: 10px; padding: 2px 6px; min-width: 18px; text-align: center; border: 2px solid var(--panel);">0</span>
+      </button>
+
+      <!-- Dropdown Popover -->
+      <div id="notif-dropdown" style="display: none; position: absolute; right: 0; top: 50px; width: 340px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px;">
+          <strong style="font-size: 0.95rem;">Notifications</strong>
+          <span id="notif-unread-count-text" style="font-size: 0.8rem; color: var(--muted);">0 unread</span>
+        </div>
+        <div id="notif-list-container" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          <p style="margin: 0; color: var(--muted); font-size: 0.85rem; text-align: center; padding: 10px;">Loading notifications...</p>
+        </div>
+      </div>
+    </div>
+
+    <a href="{% url 'upload-lab-report-page' %}" class="button" style="background-color: var(--accent); border-color: var(--accent); color: white; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin: 0;">
+      🔬 Upload Patient Lab Reports
+    </a>
+  </div>
 </div>
 
 <section class="panel">
@@ -1597,6 +1618,84 @@ document.addEventListener('DOMContentLoaded', () => {
     const cleanSearch = window.location.search.replace(/[\?&]download_rx_id=\d+/, '').replace(/^&/, '?');
     const newUrl = window.location.pathname + cleanSearch;
     window.history.replaceState({}, document.title, newUrl);
+  }
+  // Notifications Bell Script
+  const notifBtn = document.getElementById('notif-bell-btn');
+  const notifDropdown = document.getElementById('notif-dropdown');
+  const notifBadge = document.getElementById('notif-badge');
+  const notifContainer = document.getElementById('notif-list-container');
+  const notifUnreadText = document.getElementById('notif-unread-count-text');
+
+  async function fetchDoctorNotifications() {
+    try {
+      const res = await fetch('/notifications/api/list/?role=DOCTOR');
+      const data = await res.json();
+      if (data.status === 'success') {
+        const count = data.unread_count || 0;
+        if (count > 0) {
+          notifBadge.textContent = count > 99 ? '99+' : count;
+          notifBadge.style.display = 'inline-block';
+          notifUnreadText.textContent = `${count} unread`;
+        } else {
+          notifBadge.style.display = 'none';
+          notifUnreadText.textContent = 'All caught up!';
+        }
+
+        if (!data.notifications || data.notifications.length === 0) {
+          notifContainer.innerHTML = '<p style="margin: 0; color: var(--muted); font-size: 0.85rem; text-align: center; padding: 15px;">No notifications found.</p>';
+          return;
+        }
+
+        notifContainer.innerHTML = data.notifications.map(n => {
+          const isUnread = !n.is_read;
+          const bg = isUnread ? '#eef7f2' : '#ffffff';
+          const title = n.title || 'Notification';
+          const msg = typeof n.message_json === 'object' ? JSON.stringify(n.message_json) : (n.message_json || '');
+          return `
+            <div style="background: ${bg}; border: 1px solid var(--line); border-radius: 6px; padding: 10px; font-size: 0.85rem; position: relative;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 4px;">
+                <strong style="color: var(--text); font-size: 0.88rem;">${title}</strong>
+                <span style="font-size: 0.7rem; color: var(--muted); white-space: nowrap;">${n.created_at}</span>
+              </div>
+              <div style="color: var(--text); font-size: 0.82rem; margin-bottom: 6px; word-break: break-word;">${msg}</div>
+              ${isUnread ? `<button type="button" onclick="markDoctorNotifRead(${n.id})" style="background: none; border: none; color: var(--accent); font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 0; text-decoration: underline;">Mark as read</button>` : ''}
+            </div>
+          `;
+        }).join('');
+      }
+    } catch (e) {
+      console.error('Failed to fetch notifications:', e);
+    }
+  }
+
+  window.markDoctorNotifRead = async function(id) {
+    try {
+      const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+      await fetch(`/notifications/api/${id}/read/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrf }
+      });
+      fetchDoctorNotifications();
+    } catch (e) {
+      console.error('Failed to mark notification read:', e);
+    }
+  };
+
+  if (notifBtn) {
+    notifBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = notifDropdown.style.display === 'block';
+      notifDropdown.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) fetchDoctorNotifications();
+    });
+
+    document.addEventListener('click', (e) => {
+      if (notifDropdown && !notifDropdown.contains(e.target) && e.target !== notifBtn) {
+        notifDropdown.style.display = 'none';
+      }
+    });
+
+    fetchDoctorNotifications();
   }
 })();
 </script>

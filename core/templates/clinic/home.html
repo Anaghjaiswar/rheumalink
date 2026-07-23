@@ -286,12 +286,12 @@
         <li><a href="#process">Our approach</a></li>
         <li><a href="#physician">Physicians</a></li>
         <li><a href="#faq">FAQ</a></li>
-        <li><a href="#appointment">Book a visit</a></li>
+        <li><a href="#appointment">Request a visit</a></li>
         <li><a href="{% url 'compounder-dashboard' %}" class="staff-link">Compounder Desk</a></li>
         <li><a href="{% url 'doctor-dashboard' %}" class="staff-link">Doctor Desk</a></li>
       </ul>
     </nav>
-    <a href="#appointment" class="nav-cta">Book a visit</a>
+    <a href="#appointment" class="nav-cta">Request a visit</a>
     <button class="burger" id="burgerBtn" aria-label="Toggle navigation" aria-expanded="false">
       <span></span><span></span><span></span>
     </button>
@@ -307,7 +307,7 @@
         <h1>We measure what hurts, <em>then we move it.</em></h1>
         <p class="lede">{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology{% endif %} diagnoses the conditions behind joint pain, stiffness, and fatigue — rheumatoid arthritis, lupus, gout, and more — and builds a treatment plan around restoring your range of motion, not just naming your symptoms.</p>
         <div class="hero-actions">
-          <a href="#appointment" class="btn-primary">Book a consultation</a>
+          <a href="#appointment" class="btn-primary">Request a consultation</a>
           <a href="#conditions" class="btn-ghost">See conditions we treat</a>
         </div>
       </div>
@@ -523,9 +523,9 @@
   <section id="appointment">
     <div class="wrap">
       <div class="section-head reveal">
-        <p class="eyebrow">Book a visit</p>
+        <p class="eyebrow">Request a visit</p>
         <h2>Tell us where it hurts, and since when</h2>
-        <p>Reserve your appointment slot. Our system automatically registers your patient profile <span class="badge-regular">Regular Mode</span> and assigns your consulting doctor.</p>
+        <p>Request an appointment slot. We have received your request, and you will get an update from us shortly.</p>
       </div>
       <div class="appointment reveal">
         <form id="apptForm" method="POST" action="{% url 'api-book-appointment' %}" novalidate>
@@ -537,8 +537,11 @@
               <small class="err">Please enter your full name.</small>
             </div>
             <div class="field" data-field="phone">
-              <label for="phone">Phone number *</label>
-              <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="+91 98765 43210">
+              <label for="phone">WhatsApp Phone Number *</label>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="padding: 12px 14px; background: #e8e8e8; border: 1px solid var(--line); border-radius: 2px; font-weight: 600; color: var(--teal-dark); font-size: 0.96rem;">+91</span>
+                <input type="tel" id="phone" name="phone" autocomplete="tel" placeholder="98765 43210" style="flex: 1;">
+              </div>
               <small class="err">Please enter a valid phone number.</small>
             </div>
             <div class="field" data-field="email">
@@ -606,39 +609,16 @@
             </div>
           </div>
           <div class="appt-submit">
-            <button type="submit" class="btn-primary" id="submitBtn">Confirm &amp; Book Appointment</button>
-            <span class="form-note">Mode: <strong>Regular</strong> · Instant queue token assignment.</span>
+            <button type="submit" class="btn-primary" id="submitBtn">Submit Appointment Request</button>
+            <span class="form-note">We have received your request. You will get an update from us shortly.</span>
           </div>
         </form>
         <div class="success-panel" id="successPanel">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <h3>Appointment Confirmed!</h3>
-          <p>Your visit has been registered in our clinic queue system.</p>
-          
-          <div class="ticket-card">
-            <div class="ticket-row">
-              <span class="ticket-label">Queue Token</span>
-              <span class="ticket-val" id="resToken">#--</span>
-            </div>
-            <div class="ticket-row">
-              <span class="ticket-label">File Record ID</span>
-              <span class="ticket-val" id="resFileNum">RL-------</span>
-            </div>
-            <div class="ticket-row">
-              <span class="ticket-label">Patient Name</span>
-              <span class="ticket-val" id="resPatient">--</span>
-            </div>
-            <div class="ticket-row">
-              <span class="ticket-label">Assigned Doctor</span>
-              <span class="ticket-val" id="resDoctor">--</span>
-            </div>
-            <div class="ticket-row" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
-              <span class="ticket-label">Scheduled Date &amp; Time</span>
-              <span class="ticket-val" id="resDateTime">--</span>
-            </div>
-          </div>
+          <h3>Appointment Requested!</h3>
+          <p style="font-size: 1.05rem; margin-bottom: 24px;">We have received your request. You will get an update from us shortly.</p>
 
-          <button type="button" class="btn-primary" onclick="window.location.reload();">Book Another Visit</button>
+          <button type="button" class="btn-primary" onclick="window.location.reload();">Request Another Visit</button>
         </div>
       </div>
     </div>
@@ -883,7 +863,7 @@
 
       if(submitBtn){
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Registering Visit...';
+        submitBtn.textContent = 'Submitting Request...';
       }
 
       var formData = new FormData(form);
@@ -898,19 +878,13 @@
       .then(function(res){ return res.json(); })
       .then(function(data){
         if(data.status === 'success'){
-          document.getElementById('resToken').textContent = '#' + data.token_number;
-          document.getElementById('resFileNum').textContent = data.file_number;
-          document.getElementById('resPatient').textContent = data.patient_name;
-          document.getElementById('resDoctor').textContent = data.doctor_name;
-          document.getElementById('resDateTime').textContent = data.appointment_date + ' at ' + data.appointment_time;
-
           form.style.display = 'none';
           successPanel.classList.add('show');
         } else {
-          alert('Error: ' + (data.message || 'Could not register appointment.'));
+          alert('Error: ' + (data.message || 'Could not submit appointment request.'));
           if(submitBtn){
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Confirm & Book Appointment';
+            submitBtn.textContent = 'Submit Appointment Request';
           }
         }
       })
@@ -919,7 +893,7 @@
         alert('An unexpected error occurred. Please check network connection.');
         if(submitBtn){
           submitBtn.disabled = false;
-          submitBtn.textContent = 'Confirm & Book Appointment';
+          submitBtn.textContent = 'Submit Appointment Request';
         }
       });
     });

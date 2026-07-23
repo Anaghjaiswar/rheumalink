@@ -6,4 +6,5 @@ urlpatterns = [
     path('', include('clinic.urls')),
     path('', include('treatment.urls')),
     path('whatsapp/', include('whatsapp.urls')),
+    path('notifications/', include('notification.urls')),
 ]

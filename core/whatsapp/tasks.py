@@ -42,19 +42,23 @@ def send_whatsapp_message(
     if not resolved_phone_number:
         return {"ok": False, "error": "Phone number is required to send WhatsApp message"}
 
+    # Extract last 10 digits for Indian standard (+91)
+    clean_phone = "".join(filter(str.isdigit, str(resolved_phone_number)))[-10:]
+    jid = f"91{clean_phone}@s.whatsapp.net"
+
     try:
         response = requests.post(
             WHATSAPP_SEND_TEXT_URL,
-            json={"jid": f"91{resolved_phone_number}@s.whatsapp.net", "text": message},
+            json={"jid": jid, "text": message},
             timeout=10,
         )
         response.raise_for_status()
     except requests.RequestException as exc:
-        logger.exception("Failed to send WhatsApp message to %s", f"91{resolved_phone_number}@s.whatsapp.net")
+        logger.exception("Failed to send WhatsApp message to %s", jid)
         return {"ok": False, "error": f"Failed to send WhatsApp message: {exc}"}
 
-    logger.info("WhatsApp message sent successfully to %s", f"91{resolved_phone_number}@s.whatsapp.net")
-    return {"ok": True, "jid": f"91{resolved_phone_number}@s.whatsapp.net", "status_code": response.status_code}
+    logger.info("WhatsApp message sent successfully to %s", jid)
+    return {"ok": True, "jid": jid, "status_code": response.status_code}
 
 
 @shared_task(name="send_whatsapp_file_task", queue="primary")
@@ -83,6 +87,9 @@ def send_whatsapp_file(
 
     if not resolved_phone_number:
         return {"ok": False, "error": "Phone number is required to send WhatsApp message"}
+
+    clean_phone = "".join(filter(str.isdigit, str(resolved_phone_number)))[-10:]
+    jid = f"91{clean_phone}@s.whatsapp.net"
 
     # Resolve filename
     resolved_file_name = file_name or os.path.basename(file_path)
@@ -113,7 +120,7 @@ def send_whatsapp_file(
             "file": (resolved_file_name, file_data)
         }
         data = {
-            "jid": f"91{resolved_phone_number}@s.whatsapp.net",
+            "jid": jid,
             "fileName": resolved_file_name,
             "caption": caption
         }

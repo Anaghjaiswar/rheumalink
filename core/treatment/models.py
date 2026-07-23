@@ -486,5 +486,3 @@ class RumatDiagnosis(models.Model):
     class Meta:
         verbose_name = "RumatDiagnosis"
         verbose_name_plural = "RumatDiagnosis"
-
-    

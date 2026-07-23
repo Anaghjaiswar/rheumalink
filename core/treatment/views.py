@@ -982,3 +982,211 @@ def api_patient_search(request):
 		})
 	return JsonResponse({"ok": True, "patients": data})
 
+
+@csrf_exempt
+def confirm_appointment_api(request):
+    """
+    API endpoint for compounder to confirm an appointment request.
+    Creates PatientProfile, FileRecord, and Appointment in the DB upon approval,
+    and sends a WhatsApp confirmation message to the patient.
+    """
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "POST method required"}, status=405)
+
+    import json
+    from datetime import datetime, date
+    from notification.models import Notification
+    from whatsapp.tasks import send_whatsapp_message
+    from user.models import User
+
+    try:
+        if request.content_type == "application/json":
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+
+        notification_id = data.get("notification_id")
+        appointment_id = data.get("appointment_id")
+        notif = None
+
+        if notification_id:
+            try:
+                notif = Notification.objects.get(id=notification_id)
+            except Notification.DoesNotExist:
+                notif = None
+
+        # Extract parameters from request body or notification json
+        msg_json = notif.message_json if (notif and isinstance(notif.message_json, dict)) else {}
+
+        phone = data.get("phone") or msg_json.get("phone", "")
+        email = data.get("email") or msg_json.get("email", "")
+        full_name = data.get("name") or msg_json.get("name", "")
+        first_name = data.get("first_name") or msg_json.get("first_name", "")
+        last_name = data.get("last_name") or msg_json.get("last_name", "")
+
+        if full_name and not (first_name or last_name):
+            parts = full_name.split(" ", 1)
+            first_name = parts[0]
+            last_name = parts[1] if len(parts) > 1 else ""
+
+        doctor_id = data.get("doctor_id") or msg_json.get("doctor_id")
+        appt_date_str = data.get("appointment_date") or msg_json.get("appointment_date")
+        appt_time_str = data.get("appointment_time") or msg_json.get("appointment_time")
+        reason = data.get("reason") or msg_json.get("reason", "")
+        notes = data.get("notes") or msg_json.get("notes", "")
+        sex = data.get("sex") or msg_json.get("sex", "")
+        dob = data.get("dob") or msg_json.get("dob", "")
+
+        combined_reason = reason
+        if notes and notes not in reason:
+            combined_reason = f"{reason} - {notes}" if reason else notes
+
+        # 1. Doctor Assignment
+        assigned_doctor = None
+        if doctor_id:
+            try:
+                assigned_doctor = Doctor.objects.filter(id=doctor_id).first()
+            except (ValueError, TypeError):
+                pass
+        if not assigned_doctor:
+            assigned_doctor = Doctor.objects.first()
+
+        # 2. Get existing appointment or create new patient + appointment
+        appointment = None
+        if appointment_id:
+            try:
+                appointment = Appointment.objects.filter(id=appointment_id).first()
+            except Exception:
+                pass
+
+        if not appointment:
+            # Find or Create Patient Profile
+            patient = None
+            if phone:
+                patient = PatientProfile.objects.filter(contact_no=phone).first()
+            if not patient and email:
+                patient = PatientProfile.objects.filter(email=email).first()
+
+            if patient:
+                if first_name and not patient.first_name:
+                    patient.first_name = first_name
+                if last_name and not patient.last_name:
+                    patient.last_name = last_name
+                if email and not patient.email:
+                    patient.email = email
+                if phone and not patient.contact_no:
+                    patient.contact_no = phone
+                patient.type = 'Regular'
+                patient.save()
+            else:
+                clean_email = email.lower() if email else ""
+                if not clean_email:
+                    if phone:
+                        digits_phone = "".join(filter(str.isdigit, phone))[-10:]
+                        clean_email = f"patient_{digits_phone}@sandhirheum.local"
+                    else:
+                        clean_email = f"patient_{date.today().strftime('%Y%m%d%H%M%S')}@sandhirheum.local"
+
+                base_email = clean_email
+                counter = 1
+                while User.objects.filter(email=clean_email).exists():
+                    parts = base_email.split('@')
+                    clean_email = f"{parts[0]}_{counter}@{parts[1]}"
+                    counter += 1
+
+                dob_val = None
+                if dob:
+                    try:
+                        dob_val = datetime.strptime(dob, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+
+                patient = PatientProfile.objects.create(
+                    email=clean_email,
+                    first_name=first_name or "Patient",
+                    last_name=last_name or "",
+                    contact_no=phone,
+                    date_of_birth=dob_val,
+                    sex=sex if sex in ['M', 'F', 'O'] else '',
+                    type='Regular',
+                    role=User.Role.PATIENT
+                )
+
+            # Ensure FileRecord exists
+            FileRecord.objects.get_or_create(patient=patient)
+
+            # Parse date & time
+            appt_date = date.today()
+            if appt_date_str:
+                try:
+                    appt_date = datetime.strptime(appt_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+
+            appt_time = datetime.now().time().replace(microsecond=0)
+            if appt_time_str:
+                try:
+                    appt_time = datetime.strptime(appt_time_str, "%H:%M").time()
+                except ValueError:
+                    try:
+                        appt_time = datetime.strptime(appt_time_str, "%H:%M:%S").time()
+                    except ValueError:
+                        pass
+
+            # Create Appointment DB Row
+            appointment = Appointment.objects.create(
+                patient=patient,
+                doctor=assigned_doctor,
+                appointment_date=appt_date,
+                appointment_time=appt_time,
+                reason_for_visit=combined_reason or "General Consultation",
+                status='T'  # To Be Attended / Confirmed
+            )
+
+        else:
+            # Updating existing appointment
+            if appt_date_str:
+                try:
+                    appointment.appointment_date = datetime.strptime(appt_date_str, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+            if appt_time_str:
+                try:
+                    appointment.appointment_time = datetime.strptime(appt_time_str, "%H:%M").time()
+                except ValueError:
+                    pass
+            if assigned_doctor:
+                appointment.doctor = assigned_doctor
+            appointment.status = 'T'
+            appointment.save()
+
+        # Mark notification as read and confirmed
+        if notif:
+            notif.mark_as_read()
+            if isinstance(notif.message_json, dict):
+                notif.message_json['status'] = 'CONFIRMED'
+                notif.message_json['appointment_id'] = appointment.id
+                notif.save(update_fields=['message_json'])
+
+        # Broadcast live queue update
+        if appointment.doctor:
+            _broadcast_queue_update(appointment.doctor.id)
+        else:
+            _broadcast_queue_update()
+
+        patient = appointment.patient
+        return JsonResponse({
+            "status": "success",
+            "message": f"Appointment #{appointment.token_number} approved for {patient.get_full_name()}!",
+            "token_number": appointment.token_number,
+            "patient_name": patient.get_full_name(),
+            "appointment_date": appointment.appointment_date.strftime("%Y-%m-%d"),
+            "appointment_time": appointment.appointment_time.strftime("%H:%M")
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+

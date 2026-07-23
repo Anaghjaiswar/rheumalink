@@ -4,9 +4,30 @@
 {% block content %}
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: var(--bg); padding: 15px; border-radius: 8px; border: 1px solid var(--line);">
   <h2 style="margin: 0; font-family: var(--font-title);">Compounder Desk</h2>
-  <a href="{% url 'upload-lab-report-page' %}" class="button" style="background-color: var(--accent); border-color: var(--accent); color: white; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin: 0;">
-    🔬 Upload Patient Lab Reports
-  </a>
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <!-- Notification Bell Icon -->
+    <div style="position: relative; display: inline-block;">
+      <button id="notif-bell-btn" type="button" class="button alt" style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; padding: 0; margin: 0; border-radius: 50%; position: relative; font-size: 1.2rem; cursor: pointer; background: var(--panel); border: 1px solid var(--line);" title="Notifications">
+        🔔
+        <span id="notif-badge" style="display: none; position: absolute; top: -4px; right: -4px; background: var(--danger, #9f2d2d); color: white; font-size: 0.7rem; font-weight: bold; border-radius: 10px; padding: 2px 6px; min-width: 18px; text-align: center; border: 2px solid var(--panel);">0</span>
+      </button>
+
+      <!-- Dropdown Popover -->
+      <div id="notif-dropdown" style="display: none; position: absolute; right: 0; top: 50px; width: 380px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 1000; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px;">
+          <strong style="font-size: 0.95rem;">Notifications</strong>
+          <span id="notif-unread-count-text" style="font-size: 0.8rem; color: var(--muted);">0 unread</span>
+        </div>
+        <div id="notif-list-container" style="max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+          <p style="margin: 0; color: var(--muted); font-size: 0.85rem; text-align: center; padding: 10px;">Loading notifications...</p>
+        </div>
+      </div>
+    </div>
+
+    <a href="{% url 'upload-lab-report-page' %}" class="button" style="background-color: var(--accent); border-color: var(--accent); color: white; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; text-decoration: none; padding: 10px 20px; border-radius: 4px; margin: 0;">
+      🔬 Upload Patient Lab Reports
+    </a>
+  </div>
 </div>
 
 <section class="grid three">
@@ -214,6 +235,79 @@
     </tbody>
   </table>
 </section>
+
+<!-- Review & Edit Appointment Request Modal -->
+<div id="edit-appt-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 2000; justify-content: center; align-items: center; padding: 20px;">
+  <div style="background: var(--panel, #fff); border-radius: 8px; border: 1px solid var(--line); max-width: 520px; width: 100%; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.25); max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid var(--line); padding-bottom: 12px;">
+      <h3 style="margin: 0; font-family: var(--font-title); color: var(--teal-dark, #1B3733);">Review &amp; Edit Appointment Request</h3>
+      <button type="button" onclick="closeEditApptModal()" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--muted);">&times;</button>
+    </div>
+    <form id="edit-appt-form">
+      <input type="hidden" id="edit-notif-id" name="notification_id">
+      <input type="hidden" id="edit-appt-id" name="appointment_id">
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">First Name *</label>
+          <input type="text" id="edit-first-name" name="first_name" required style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Last Name</label>
+          <input type="text" id="edit-last-name" name="last_name" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">WhatsApp Phone *</label>
+          <input type="tel" id="edit-phone" name="phone" required style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Email</label>
+          <input type="email" id="edit-email" name="email" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Consulting Doctor *</label>
+        <select id="edit-doctor-id" name="doctor_id" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+          {% for doc in appointment_form.fields.doctor.queryset %}
+            <option value="{{ doc.id }}">{{ doc.get_full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Appointment Date *</label>
+          <input type="date" id="edit-appt-date" name="appointment_date" required style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Time Slot *</label>
+          <input type="time" id="edit-appt-time" name="appointment_time" required style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Reason for Visit</label>
+        <input type="text" id="edit-reason" name="reason" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;">
+      </div>
+
+      <div style="margin-bottom: 18px;">
+        <label style="display: block; font-size: 0.8rem; font-weight: bold; margin-bottom: 4px;">Notes</label>
+        <textarea id="edit-notes" name="notes" rows="2" style="width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px;"></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="button alt" onclick="closeEditApptModal()" style="margin: 0; padding: 8px 16px;">Cancel</button>
+        <button type="submit" id="edit-save-btn" class="button" style="margin: 0; background: #2e7d32; border-color: #2e7d32; color: #fff; font-weight: bold; padding: 8px 18px;">
+          ✅ Approve &amp; Create Appointment
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -333,6 +427,234 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   connect();
+})();
+
+// Notifications Bell & Appointment Confirmation Script
+(function() {
+  const notifBtn = document.getElementById('notif-bell-btn');
+  const notifDropdown = document.getElementById('notif-dropdown');
+  const notifBadge = document.getElementById('notif-badge');
+  const notifContainer = document.getElementById('notif-list-container');
+  const notifUnreadText = document.getElementById('notif-unread-count-text');
+
+  if (!notifBtn || !notifDropdown) return;
+
+  notifBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isVisible = notifDropdown.style.display === 'block';
+    notifDropdown.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) {
+      fetchCompounderNotifications();
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!notifDropdown.contains(e.target) && !notifBtn.contains(e.target)) {
+      notifDropdown.style.display = 'none';
+    }
+  });
+
+  window.notifStore = {};
+
+  async function fetchCompounderNotifications() {
+    try {
+      const res = await fetch('/notifications/api/list/?role=COMPOUNDER');
+      const data = await res.json();
+      if (data.status === 'success') {
+        const count = data.unread_count || 0;
+        if (count > 0) {
+          notifBadge.textContent = count > 99 ? '99+' : count;
+          notifBadge.style.display = 'inline-block';
+          notifUnreadText.textContent = `${count} unread`;
+        } else {
+          notifBadge.style.display = 'none';
+          notifUnreadText.textContent = 'All caught up!';
+        }
+
+        if (!data.notifications || data.notifications.length === 0) {
+          notifContainer.innerHTML = '<p style="margin: 0; color: var(--muted); font-size: 0.85rem; text-align: center; padding: 15px;">No notifications found.</p>';
+          return;
+        }
+
+        notifContainer.innerHTML = data.notifications.map(n => {
+          window.notifStore[n.id] = n;
+          const isUnread = !n.is_read;
+          const bg = isUnread ? '#eef7f2' : '#ffffff';
+          const title = n.title || 'Notification';
+          const jsonMsg = n.message_json || {};
+          const isApptRequest = jsonMsg.type === 'APPOINTMENT_REQUEST' || jsonMsg.appointment_id;
+          const isConfirmed = jsonMsg.status === 'CONFIRMED' || !isUnread;
+
+          let bodyHtml = '';
+          if (isApptRequest) {
+            const pName = jsonMsg.name || jsonMsg.patient_name || 'N/A';
+            const pPhone = jsonMsg.phone || jsonMsg.patient_phone || 'N/A';
+            const apptIdParam = jsonMsg.appointment_id ? jsonMsg.appointment_id : 'null';
+            bodyHtml = `
+              <div style="font-size: 0.82rem; color: var(--text); margin-bottom: 8px;">
+                <strong>Patient:</strong> ${pName}<br>
+                <strong>Phone:</strong> ${pPhone}<br>
+                <strong>Requested Slot:</strong> ${jsonMsg.appointment_date || ''} at ${jsonMsg.appointment_time || ''}<br>
+                <strong>Doctor:</strong> ${jsonMsg.doctor_name || 'Assigned Doctor'}<br>
+                <strong>Reason:</strong> ${jsonMsg.reason || 'Consultation'}
+                ${jsonMsg.notes ? `<br><strong>Notes:</strong> ${jsonMsg.notes}` : ''}
+              </div>
+              ${!isConfirmed ? `
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button type="button" onclick="triggerEditApptModal(${n.id})" 
+                          style="background: #1976d2; color: white; border: none; border-radius: 4px; padding: 5px 10px; font-size: 0.76rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                    ✏️ Review &amp; Edit
+                  </button>
+                  <button type="button" onclick="confirmAppointmentFromNotif(${n.id}, ${apptIdParam})" 
+                          style="background: #2e7d32; color: white; border: none; border-radius: 4px; padding: 5px 10px; font-size: 0.76rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                    ⚡ Quick Approve
+                  </button>
+                </div>
+              ` : `
+                <span style="display: inline-block; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; font-weight: bold;">
+                  ✓ Confirmed &amp; Sent via WhatsApp
+                </span>
+              `}
+            `;
+          } else {
+            const strMsg = typeof jsonMsg === 'object' ? JSON.stringify(jsonMsg) : jsonMsg;
+            bodyHtml = `<div style="color: var(--text); font-size: 0.82rem; margin-bottom: 6px;">${strMsg}</div>`;
+          }
+
+          return `
+            <div style="background: ${bg}; border: 1px solid var(--line); border-radius: 6px; padding: 10px; font-size: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 4px;">
+                <strong style="color: var(--teal-dark, #1B3733); font-size: 0.88rem;">${title}</strong>
+                <span style="font-size: 0.7rem; color: var(--muted); white-space: nowrap;">${n.created_at}</span>
+              </div>
+              ${bodyHtml}
+            </div>
+          `;
+        }).join('');
+      }
+    } catch (e) {
+      console.error('Failed to fetch compounder notifications:', e);
+    }
+  }
+
+  window.triggerEditApptModal = function(notifId) {
+    const notif = window.notifStore[notifId];
+    if (!notif) return;
+    const msg = notif.message_json || {};
+    
+    document.getElementById('edit-notif-id').value = notifId;
+    document.getElementById('edit-appt-id').value = msg.appointment_id || '';
+    
+    const fullName = msg.name || msg.patient_name || '';
+    let firstName = msg.first_name || '';
+    let lastName = msg.last_name || '';
+    if (!firstName && fullName) {
+      const parts = fullName.split(' ');
+      firstName = parts[0];
+      lastName = parts.slice(1).join(' ');
+    }
+
+    document.getElementById('edit-first-name').value = firstName;
+    document.getElementById('edit-last-name').value = lastName;
+    document.getElementById('edit-phone').value = msg.phone || msg.patient_phone || '';
+    document.getElementById('edit-email').value = msg.email || msg.patient_email || '';
+    if (msg.doctor_id) document.getElementById('edit-doctor-id').value = msg.doctor_id;
+    document.getElementById('edit-appt-date').value = msg.appointment_date || new Date().toISOString().split('T')[0];
+    document.getElementById('edit-appt-time').value = msg.appointment_time || '09:00';
+    document.getElementById('edit-reason').value = msg.reason || '';
+    document.getElementById('edit-notes').value = msg.notes || '';
+
+    notifDropdown.style.display = 'none';
+    document.getElementById('edit-appt-modal').style.display = 'flex';
+  };
+
+  window.closeEditApptModal = function() {
+    document.getElementById('edit-appt-modal').style.display = 'none';
+  };
+
+  const editForm = document.getElementById('edit-appt-form');
+  if (editForm) {
+    editForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('edit-save-btn');
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving & Approving...'; }
+
+      const formData = new FormData(editForm);
+      const payload = {};
+      formData.forEach((val, key) => { payload[key] = val; });
+
+      try {
+        const res = await fetch("{% url 'api-confirm-appointment' %}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken') || ''
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert('✅ ' + data.message);
+          closeEditApptModal();
+          fetchCompounderNotifications();
+          setTimeout(() => window.location.reload(), 800);
+        } else {
+          alert('Error: ' + (data.message || 'Could not approve appointment.'));
+          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✅ Approve & Create Appointment'; }
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Network error approving appointment.');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '✅ Approve & Create Appointment'; }
+      }
+    });
+  }
+
+  window.confirmAppointmentFromNotif = async function(notifId, apptId) {
+    if (!confirm('Approve this request, create patient profile/appointment, and send WhatsApp confirmation?')) return;
+    try {
+      const res = await fetch("{% url 'api-confirm-appointment' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: JSON.stringify({
+          notification_id: notifId,
+          appointment_id: apptId
+        })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        alert('✅ ' + data.message);
+        fetchCompounderNotifications();
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        alert('Error: ' + (data.message || 'Could not confirm appointment.'));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Network error confirming appointment.');
+    }
+  };
+
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  fetchCompounderNotifications();
+  setInterval(fetchCompounderNotifications, 12000);
 })();
 </script>
 {% endblock %}

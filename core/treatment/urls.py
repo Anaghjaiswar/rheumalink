@@ -27,4 +27,5 @@ urlpatterns = [
     path("api/lab-report/save/<int:report_id>/", views.api_save_extracted_lab_data, name="api-save-extracted-lab-data"),
     path("api/patient/<int:patient_id>/appointments/", views.api_patient_appointments, name="api-patient-appointments"),
     path("api/patient/search/", views.api_patient_search, name="api-patient-search"),
+    path("api/confirm-appointment/", views.confirm_appointment_api, name="api-confirm-appointment"),
 ]

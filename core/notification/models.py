@@ -71,7 +71,7 @@ class Notification(models.Model):
 
     # Core Notification Details
     title = models.CharField(max_length=255)
-    message_json = models.JSONField()
+    message_json = models.JSONField(default=dict, blank=True)
     notification_type = models.CharField(
         max_length=20,
         choices=NotificationType.choices,

@@ -8,6 +8,7 @@ from django.contrib import messages
 
 from clinic.models import ClinicSettings
 from doctor.models import Doctor
+from notification.models import Notification
 from patient.models import PatientProfile, FileRecord
 from treatment.models import Appointment
 from treatment.views import _broadcast_queue_update
@@ -100,7 +101,7 @@ def _handle_appointment_booking(request):
         messages.error(request, err_msg)
         return redirect("clinic-home")
 
-    # 1. Doctor Assignment: Directly assign specified doctor or fallback to first available doctor in DB
+    # 1. Doctor Assignment: Resolve doctor for request routing
     assigned_doctor = None
     if doctor_id:
         try:
@@ -111,117 +112,39 @@ def _handle_appointment_booking(request):
     if not assigned_doctor:
         assigned_doctor = Doctor.objects.first()
 
-    # 2. Find or Create Patient Profile (Default Regular Mode)
-    patient = None
-    if phone:
-        patient = PatientProfile.objects.filter(contact_no=phone).first()
-    if not patient and email:
-        patient = PatientProfile.objects.filter(email=email).first()
-
-    if patient:
-        # Update profile attributes if missing
-        if first_name and not patient.first_name:
-            patient.first_name = first_name
-        if last_name and not patient.last_name:
-            patient.last_name = last_name
-        if email and not patient.email:
-            patient.email = email
-        if phone and not patient.contact_no:
-            patient.contact_no = phone
-        if dob and not patient.date_of_birth:
-            try:
-                patient.date_of_birth = datetime.strptime(dob, "%Y-%m-%d").date()
-            except ValueError:
-                pass
-        if sex and sex in ['M', 'F', 'O'] and not patient.sex:
-            patient.sex = sex
-        patient.type = 'Regular'  # Force default regular mode
-        patient.save()
-    else:
-        # Generate clean username
-        clean_email = email.lower() if email else ""
-        if clean_email:
-            base_user = clean_email.split('@')[0]
-        elif phone:
-            base_user = f"patient_{phone.replace('+', '').replace(' ', '').replace('-', '')}"
-        else:
-            base_user = f"patient_{date.today().strftime('%Y%m%d%H%M%S')}"
-
-        username = base_user
-        counter = 1
-        while User.objects.filter(username=username).exists():
-            username = f"{base_user}_{counter}"
-            counter += 1
-
-        dob_val = None
-        if dob:
-            try:
-                dob_val = datetime.strptime(dob, "%Y-%m-%d").date()
-            except ValueError:
-                pass
-
-        patient = PatientProfile.objects.create(
-            username=username,
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            contact_no=phone,
-            date_of_birth=dob_val,
-            sex=sex if sex in ['M', 'F', 'O'] else '',
-            type='Regular',  # Default regular mode
-            role=User.Role.PATIENT
-        )
-
-    # Ensure patient has an active internal FileRecord
-    file_record, _ = FileRecord.objects.get_or_create(patient=patient)
-
-    # 3. Parse Appointment Date & Time
-    appt_date = date.today()
-    if appt_date_str:
-        try:
-            appt_date = datetime.strptime(appt_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-
-    appt_time = datetime.now().time().replace(microsecond=0)
-    if appt_time_str:
-        try:
-            appt_time = datetime.strptime(appt_time_str, "%H:%M").time()
-        except ValueError:
-            try:
-                appt_time = datetime.strptime(appt_time_str, "%H:%M:%S").time()
-            except ValueError:
-                pass
-
-    # 4. Create Appointment record
-    appointment = Appointment.objects.create(
-        patient=patient,
-        doctor=assigned_doctor,
-        appointment_date=appt_date,
-        appointment_time=appt_time,
-        reason_for_visit=combined_reason or "General Consultation",
-        status='T'  # Status: To Be Attended
-    )
-
-    # Broadcast queue update for live dashboard synchronization
-    if assigned_doctor:
-        _broadcast_queue_update(assigned_doctor.id)
-    else:
-        _broadcast_queue_update()
-
     doctor_name = assigned_doctor.get_full_name() if assigned_doctor else "Assigned Doctor"
+    full_patient_name = f"{first_name} {last_name}".strip()
+
+    # 2. Create Notification for Compounder Desk (No Patient or Appointment DB rows created yet)
+    Notification.objects.create(
+        target_role=Notification.TargetRole.COMPOUNDER,
+        notification_type=Notification.NotificationType.APPOINTMENT,
+        priority=Notification.Priority.HIGH,
+        title=f"New Appointment Request: {full_patient_name}",
+        message_json={
+            "type": "APPOINTMENT_REQUEST",
+            "name": full_patient_name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "phone": phone,
+            "email": email,
+            "doctor_id": assigned_doctor.id if assigned_doctor else None,
+            "doctor_name": doctor_name,
+            "appointment_date": appt_date_str or date.today().strftime("%Y-%m-%d"),
+            "appointment_time": appt_time_str or "09:00",
+            "sex": sex,
+            "dob": dob,
+            "reason": reason,
+            "notes": notes,
+            "status": "PENDING"
+        }
+    )
 
     if is_ajax:
         return JsonResponse({
             "status": "success",
-            "message": "Appointment requested successfully!",
-            "token_number": appointment.token_number,
-            "file_number": file_record.internal_file_number,
-            "doctor_name": doctor_name,
-            "appointment_date": appointment.appointment_date.strftime("%b %d, %Y"),
-            "appointment_time": appointment.appointment_time.strftime("%I:%M %p"),
-            "patient_name": patient.get_full_name()
+            "message": "We have received your request. You will get an update from us shortly."
         })
     else:
-        messages.success(request, f"Appointment booked! Your Token Number is #{appointment.token_number} with {doctor_name}.")
+        messages.success(request, "We have received your request. You will get an update from us shortly.")
         return redirect("clinic-home")
