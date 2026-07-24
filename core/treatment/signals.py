@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Appointment
+from clinic.models import ClinicSettings
 
 
 @receiver(post_save, sender=Appointment)
@@ -14,9 +15,12 @@ def send_appointment_whatsapp_notification(sender, instance, created, **kwargs):
         formatted_date = instance.appointment_date.strftime("%b %d, %Y")
         formatted_time = instance.appointment_time.strftime("%I:%M %p")
 
+        clinic = ClinicSettings.objects.first()
+        clinic_name = clinic.name if (clinic and clinic.name) else "Sandhi Rheumatology Clinic"
+
         message_text = (
             f"Hello {instance.patient.get_full_name()},\n\n"
-            f"Your appointment request at Sandhi Rheumatology Clinic has been CONFIRMED!\n\n"
+            f"Your appointment request at {clinic_name} has been CONFIRMED!\n\n"
             f"👨‍⚕️ Doctor: {doctor_name}\n"
             f"📅 Date: {formatted_date}\n"
             f"⏰ Time: {formatted_time}\n"
