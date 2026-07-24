@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils.translation import gettext_lazy as _
 from .models import Comorbidity, FileRecord, PatientDiagnosis, PatientMedicalInfo, PatientProfile, PatientQueries, PatientState
 
 
@@ -14,26 +16,54 @@ class PatientMedicalInfoInline(admin.StackedInline):
 
 
 @admin.register(PatientProfile)
-class PatientProfileAdmin(admin.ModelAdmin):
+class PatientProfileAdmin(BaseUserAdmin):
 	list_display = (
 		"id",
 		"first_name",
 		"last_name",
+		"email",
 		"sex",
 		"type",
 		"contact_no",
-		"email",
 		"date_registered",
+		"is_active",
 	)
-	list_filter = ("sex", "type", "date_registered")
+	list_filter = ("sex", "type", "date_registered", "is_active")
 	search_fields = ("first_name", "last_name", "contact_no", "email")
-	readonly_fields = ("date_registered", "age_display")
+	readonly_fields = ("date_registered", "age_display", "last_login", "date_joined")
 	date_hierarchy = "date_registered"
 	inlines = [FileRecordInline, PatientMedicalInfoInline]
+	ordering = ("-date_registered",)
+
+	fieldsets = (
+		(None, {"fields": ("email", "password")}),
+		(_("Personal Info"), {"fields": ("first_name", "last_name", "date_of_birth", "sex", "contact_no", "type")}),
+		(_("Permissions & Role"), {"fields": ("role", "is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
+		(_("Important Dates"), {"fields": ("date_registered", "last_login", "date_joined")}),
+	)
+	add_fieldsets = (
+		(
+			None,
+			{
+				"classes": ("wide",),
+				"fields": ("email", "password1", "password2", "first_name", "last_name", "contact_no", "sex", "type"),
+			},
+		),
+	)
+
+	def save_model(self, request, obj, form, change):
+		if obj.password:
+			try:
+				from django.contrib.auth.hashers import identify_hasher
+				identify_hasher(obj.password)
+			except ValueError:
+				obj.set_password(obj.password)
+		super().save_model(request, obj, form, change)
 
 	@admin.display(description="Age")
 	def age_display(self, obj):
 		return obj.get_age()
+
 
 
 @admin.register(FileRecord)

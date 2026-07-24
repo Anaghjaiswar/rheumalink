@@ -90,3 +90,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_compounder(self):
         return self.role == self.Role.COMPOUNDER
+
+    def save(self, *args, **kwargs):
+        if self.password:
+            try:
+                from django.contrib.auth.hashers import identify_hasher
+                identify_hasher(self.password)
+            except ValueError:
+                self.set_password(self.password)
+        super().save(*args, **kwargs)
+

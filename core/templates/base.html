@@ -41,37 +41,132 @@
     }
 
     .topbar {
-      display: grid;
-      grid-template-columns: 1fr auto;
+      display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 16px 20px;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 20px;
       border: 1px solid var(--line);
       background: var(--panel);
+      position: relative;
+      border-radius: 4px;
     }
 
-    .topbar h1 {
-      margin: 0;
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--accent);
+      font-weight: 700;
       font-size: 1.15rem;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .topbar-brand img {
+      height: 42px;
+      max-height: 46px;
+      width: auto;
+      max-width: 200px;
+      object-fit: contain;
+      border-radius: 4px;
     }
 
     .nav-links {
       display: flex;
+      align-items: center;
       gap: 8px;
-      flex-wrap: wrap;
     }
 
     .nav-links a {
       text-decoration: none;
       color: var(--text);
       border: 1px solid var(--line);
-      padding: 8px 10px;
+      padding: 8px 12px;
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       background: #fbfdf8;
+      border-radius: 4px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
     }
+
+    .nav-links a:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .base-burger {
+      display: none;
+      background: #fbfdf8;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 6px;
+      width: 38px;
+      height: 38px;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .base-burger span {
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: var(--text);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+    }
+
+    .base-burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .base-burger.open span:nth-child(2) { opacity: 0; }
+    .base-burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    @media (max-width: 992px) {
+      .base-burger { display: flex; }
+      .nav-links {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-top: none;
+        box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 0;
+        max-height: 0;
+        opacity: 0;
+        visibility: hidden;
+        overflow: hidden;
+        transition: max-height 0.35s ease, opacity 0.25s ease, visibility 0.25s;
+        z-index: 100;
+        border-radius: 0 0 4px 4px;
+      }
+      .nav-links.open {
+        max-height: 480px;
+        opacity: 1;
+        visibility: visible;
+        padding: 14px;
+        overflow-y: auto;
+      }
+      .nav-links a {
+        display: block;
+        width: 100%;
+        text-align: left;
+        box-sizing: border-box;
+      }
+      .user-badge-item {
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+      }
+    }
+
 
     .grid {
       display: grid;
@@ -307,11 +402,33 @@
 <body>
   <main class="wrapper">
     <header class="topbar">
-      <h1>RheumaLink Clinic Workspace</h1>
-      <nav class="nav-links" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <a href="{% url 'clinic-home' %}" class="topbar-brand" aria-label="{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology Clinic{% endif %}">
+        {% if clinic and clinic.logo %}
+          <img src="{{ clinic.logo.url }}" alt="{{ clinic.name }}">
+        {% else %}
+          <svg viewBox="0 0 32 32" fill="none" stroke="var(--accent)" stroke-width="1.6" style="width: 38px; height: 38px; flex: none;">
+            <path d="M16 28 A12 12 0 0 1 4 16" stroke-linecap="round"/>
+            <path d="M16 28 A12 12 0 0 0 28 16" stroke-linecap="round" stroke="#BE6A3A"/>
+            <line x1="16" y1="28" x2="16" y2="8" stroke-linecap="round"/>
+            <circle cx="16" cy="28" r="2.2" fill="var(--accent)" stroke="none"/>
+          </svg>
+          <span>{% if clinic %}{{ clinic.name }}{% else %}Sandhi Rheumatology{% endif %}</span>
+        {% endif %}
+      </a>
+
+      <nav class="nav-links" id="baseNavLinks">
+        <a href="{% url 'clinic-home' %}">🏠 Clinic Home</a>
         <a href="{% url 'compounder-dashboard' %}">Compounder Dashboard</a>
         <a href="{% url 'doctor-dashboard' %}">Doctor Dashboard</a>
-        <div style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); padding: 6px 10px; background: #fbfdf8; font-size: 0.85rem; font-weight: 600;">
+        {% if user.is_authenticated %}
+          <span class="user-badge-item" style="font-size: 0.82rem; padding: 6px 10px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 4px; font-weight: 600;">
+            👤 {{ user.first_name|default:user.email }} ({{ user.role }})
+          </span>
+          <a href="{% url 'logout' %}" style="color: var(--danger); border-color: var(--danger); background: #fff;">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}" style="background: var(--accent); color: #fff;">Login</a>
+        {% endif %}
+        <div style="display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); padding: 6px 10px; background: #fbfdf8; font-size: 0.85rem; font-weight: 600; border-radius: 4px;">
           <span style="color: var(--muted);">🎙️ Voice Lang:</span>
           <select id="voice-lang-select" style="width: auto; border: none; padding: 0 4px; background: transparent; font-weight: 700; cursor: pointer; font-size: 0.85rem; color: var(--text); outline: none;">
             <option value="en-IN" selected>English (India) / Hinglish</option>
@@ -323,7 +440,12 @@
           </select>
         </div>
       </nav>
+
+      <button class="base-burger" id="baseBurgerBtn" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </header>
+
 
     {% if messages %}
       {% for message in messages %}
@@ -335,7 +457,18 @@
   </main>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      const baseBurger = document.getElementById('baseBurgerBtn');
+      const baseNavLinks = document.getElementById('baseNavLinks');
+      if (baseBurger && baseNavLinks) {
+        baseBurger.addEventListener('click', () => {
+          const isOpen = baseNavLinks.classList.toggle('open');
+          baseBurger.classList.toggle('open', isOpen);
+          baseBurger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+      }
+
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
       if (!SpeechRecognition) {
         console.warn('Web Speech API is not supported in this browser.');
         return;

@@ -1,0 +1,257 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Login | Sandhi Rheumatology Clinic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --stone:#EDECE3;
+    --cream:#F7F5EE;
+    --ink:#1E2B27;
+    --ink-soft:#3F5750;
+    --teal:#2F5C55;
+    --teal-dark:#1B3733;
+    --sienna:#BE6A3A;
+    --sienna-soft:#E7CBB3;
+    --sage:#9FB3AA;
+    --line:rgba(30,43,39,0.14);
+    --danger:#9F2D2D;
+    --danger-bg:#FDF2F2;
+    --ok:#116149;
+    --ok-bg:#EDFAF2;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--stone);
+    color: var(--ink);
+    font-family: 'Public Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    width: 100%;
+    max-width: 440px;
+    padding: 36px 32px;
+    box-shadow: 0 12px 32px rgba(30,43,39,0.06);
+  }
+
+  .brand-header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .brand-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+  }
+
+  .brand-header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.6rem;
+    color: var(--teal-dark);
+    margin: 0 0 6px;
+    font-weight: 600;
+  }
+
+  .brand-header p {
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .role-badge-group {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .role-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 3px;
+    background: rgba(47,92,85,0.08);
+    color: var(--teal-dark);
+    border: 1px solid var(--line);
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+
+  .form-group label {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--teal-dark);
+  }
+
+  .form-group input {
+    border: 1px solid var(--line);
+    background: #fff;
+    padding: 12px 14px;
+    border-radius: 3px;
+    font-family: 'Public Sans', sans-serif;
+    font-size: 0.96rem;
+    color: var(--ink);
+    width: 100%;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(47,92,85,0.15);
+  }
+
+  .btn-submit {
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    padding: 14px 24px;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 0.96rem;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    transition: background 0.2s ease;
+  }
+
+  .btn-submit:hover {
+    background: var(--teal-dark);
+  }
+
+  .msg-box {
+    padding: 12px 14px;
+    border-radius: 3px;
+    font-size: 0.88rem;
+    margin-bottom: 18px;
+  }
+
+  .msg-box.error {
+    background: var(--danger-bg);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+
+  .msg-box.success {
+    background: var(--ok-bg);
+    border: 1px solid var(--ok);
+    color: var(--ok);
+  }
+
+  .msg-box.info {
+    background: #F0F7F6;
+    border: 1px solid var(--teal);
+    color: var(--teal-dark);
+  }
+
+  .footer-links {
+    text-align: center;
+    margin-top: 24px;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .footer-links a {
+    color: var(--teal-dark);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .footer-links a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="brand-header">
+    <svg class="brand-icon" viewBox="0 0 32 32" fill="none" stroke="var(--teal)" stroke-width="1.6">
+      <path d="M16 28 A12 12 0 0 1 4 16" stroke-linecap="round"/>
+      <path d="M16 28 A12 12 0 0 0 28 16" stroke-linecap="round" stroke="var(--sienna)"/>
+      <line x1="16" y1="28" x2="16" y2="8" stroke-linecap="round"/>
+      <circle cx="16" cy="28" r="2.2" fill="var(--teal)" stroke="none"/>
+    </svg>
+    <h1>Clinic Staff Portal</h1>
+    <p>Sign in to access Compounder &amp; Doctor Dashboards</p>
+  </div>
+
+  <div class="role-badge-group">
+    <span class="role-badge">🩺 Doctor Access</span>
+    <span class="role-badge">💊 Compounder Access</span>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="msg-box {% if message.tags %}{{ message.tags }}{% else %}info{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST" action="{% url 'login' %}" id="loginForm">
+    {% csrf_token %}
+    {% if next %}
+      <input type="hidden" name="next" value="{{ next }}">
+    {% endif %}
+
+    <div class="form-group">
+      <label for="id_email">Email Address</label>
+      {{ form.email }}
+      {% if form.email.errors %}
+        <small style="color: var(--danger);">{{ form.email.errors.0 }}</small>
+      {% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="id_password">Password</label>
+      {{ form.password }}
+      {% if form.password.errors %}
+        <small style="color: var(--danger);">{{ form.password.errors.0 }}</small>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn-submit" id="loginBtn">Sign In to Workspace</button>
+  </form>
+
+  <div class="footer-links">
+    <a href="{% url 'clinic-home' %}">← Return to Clinic Homepage</a>
+  </div>
+</div>
+
+<script>
+  document.getElementById('loginForm')?.addEventListener('submit', function(e) {
+    var btn = document.getElementById('loginBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -4,6 +4,7 @@ from io import BytesIO
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db.models import Q
@@ -12,7 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 import requests
 
-
+from user.models import User
 from doctor.models import Doctor
 from patient.models import Comorbidity, FileRecord, PatientMedicalInfo, PatientProfile
 from patient.models import PatientDiagnosis
@@ -95,8 +96,17 @@ def _doctor_queryset(doctor_id):
 	return base
 
 
+@login_required(login_url='login')
 def compounder_dashboard(request):
+	user_role = getattr(request.user, 'role', None)
+	is_compounder = getattr(request.user, 'is_compounder', False) or user_role == User.Role.COMPOUNDER
+	is_doctor = getattr(request.user, 'is_doctor', False) or user_role == User.Role.DOCTOR
+	if not (is_compounder or is_doctor or request.user.is_staff or request.user.is_superuser):
+		messages.error(request, "Access restricted. Please log in with a Compounder or Doctor account.")
+		return redirect(f"/login/?next={request.path}")
+
 	if request.method == "POST":
+
 		action = request.POST.get("action")
 
 		if action == "register_patient":
@@ -207,9 +217,22 @@ def compounder_dashboard(request):
 	return render(request, "treatment/compounder_dashboard.html", context)
 
 
+@login_required(login_url='login')
 def doctor_dashboard(request):
+	user_role = getattr(request.user, 'role', None)
+	is_doctor = getattr(request.user, 'is_doctor', False) or user_role == User.Role.DOCTOR
+	if not (is_doctor or request.user.is_staff or request.user.is_superuser):
+		messages.error(request, "Access restricted to doctors. Please log in with a Doctor account.")
+		return redirect(f"/login/?next={request.path}")
+
 	doctor_id = request.GET.get("doctor") or request.POST.get("doctor_id")
+	if not doctor_id and is_doctor:
+		doc_obj = Doctor.objects.filter(id=request.user.id).first()
+		if doc_obj:
+			doctor_id = doc_obj.id
+
 	selected_doctor = None
+
 	if doctor_id:
 		try:
 			doctor_id = int(doctor_id)
@@ -417,7 +440,9 @@ def doctor_dashboard(request):
 	return render(request, "treatment/doctor_dashboard.html", context)
 
 
+@login_required(login_url='login')
 def joint_chart_page(request, appointment_id):
+
 	appointment = get_object_or_404(Appointment.objects.select_related("patient", "doctor"), id=appointment_id)
 	patient = appointment.patient
 
@@ -681,7 +706,9 @@ def get_appointment_vitals(request, appointment_id):
 	})
 
 
+@login_required(login_url='login')
 def rumat_diagnosis_page(request, appointment_id):
+
 	appointment = get_object_or_404(Appointment.objects.select_related("patient", "doctor"), id=appointment_id)
 	patient = appointment.patient
 
@@ -857,7 +884,9 @@ def send_prescription_to_patient(request, prescription_id):
 	return JsonResponse({"ok": True, "message": "Prescription sending task dispatched successfully"})
 
 
+@login_required(login_url='login')
 def upload_lab_report_page(request):
+
 	"""Renders the single page lab report upload and extraction playground."""
 	return render(request, "treatment/upload_lab_report.html")
 
