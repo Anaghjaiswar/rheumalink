@@ -54,11 +54,11 @@
 <section class="panel">
   <h2>Patient & File Search</h2>
   <form method="get" style="display: flex; gap: 8px; align-items: center; margin-bottom: 0;">
-    <input type="hidden" name="doctor" value="{{ request.GET.doctor|default:'' }}">
+    <input type="hidden" name="doctor" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
     <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ request.GET.search_q|default:'' }}" style="flex: 1; margin: 0;">
     <button type="submit" style="margin: 0; width: auto; padding: 10px 20px;">Search</button>
     {% if request.GET.search_q %}
-      <a href="?doctor={{ request.GET.doctor|default:'' }}" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
+      <a href="?doctor={{ doctor_id|default:request.GET.doctor|default:'' }}" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
     {% endif %}
   </form>
 
@@ -122,7 +122,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="update_status">
                 <input type="hidden" name="appointment_id" value="{{ item.id }}">
-                <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+                <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
                 <select name="status">
                   {% for k, v in item.STATUS_CHOICES %}
                     <option value="{{ k }}" {% if item.status == k %}selected{% endif %}>{{ v }}</option>
@@ -237,7 +237,7 @@
         <form method="post" action="">
           {% csrf_token %}
           <input type="hidden" name="action" value="capture_vitals">
-          <input type="hidden" name="doctor_id" value="{{ request.GET.doctor|default:'' }}">
+          <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
           <input type="hidden" name="appointment_id" class="active-appointment-id-field">
           <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
           
@@ -329,7 +329,7 @@
         <form method="post" action="">
           {% csrf_token %}
           <input type="hidden" name="action" value="save_medical_info_doctor">
-          <input type="hidden" name="doctor_id" value="{{ request.GET.doctor|default:'' }}">
+          <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
           <input type="hidden" name="patient_id" id="doctor_patient_id" class="active-patient-id-field">
           <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
           
@@ -418,7 +418,7 @@
     <form method="post" id="consultation-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="save_consultation">
-      <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+      <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
       <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
       <label for="appointment_id">Appointment</label>
       <select name="appointment_id" id="appointment_id" required>
@@ -511,7 +511,7 @@
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="action" value="save_diagnosis">
-      <input type="hidden" name="doctor_id" value="{{ request.GET.doctor }}">
+      <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
       <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
 
       <label for="diagnosis_appointment">Appointment</label>
@@ -575,6 +575,13 @@ function startPatientConsultation(appointmentId, patientId, tokenNumber, patient
   
   document.querySelectorAll('.active-appointment-id-field').forEach(input => input.value = appointmentId);
   document.querySelectorAll('.active-patient-id-field').forEach(input => input.value = patientId);
+
+  // Update browser URL query string without full reload so active_appt is preserved
+  try {
+    const currentUrl = new URL(window.location);
+    currentUrl.searchParams.set('active_appt', appointmentId);
+    window.history.replaceState({}, '', currentUrl);
+  } catch (e) {}
   
   const apptSelect1 = document.getElementById('appointment_id');
   if (apptSelect1) {
@@ -597,6 +604,28 @@ function startPatientConsultation(appointmentId, patientId, tokenNumber, patient
   fetchVitals(appointmentId);
   fetchMedicalInfo(patientId);
   fetchDiagnosisStatus(appointmentId);
+}
+
+function selectPatientForDoctor(patientId) {
+  const row = document.querySelector(`tr[data-patient-id="${patientId}"]`);
+  if (row) {
+    const apptId = row.getAttribute('data-appointment-id');
+    const token = row.getAttribute('data-token-number');
+    const name = row.getAttribute('data-patient-name');
+    startPatientConsultation(apptId, patientId, token, name);
+  } else {
+    document.querySelectorAll('.active-patient-id-field').forEach(input => input.value = patientId);
+    const patSelect = document.getElementById('doctor_patient_id');
+    if (patSelect) {
+      patSelect.value = patientId;
+      patSelect.dispatchEvent(new Event('change'));
+    }
+    const panel = document.getElementById('active-patient-panel');
+    if (panel) {
+      panel.style.display = 'block';
+      panel.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 }
 
 function fetchDiagnosisStatus(appointmentId) {

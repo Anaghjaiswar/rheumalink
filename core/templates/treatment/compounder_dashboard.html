@@ -653,6 +653,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return cookieValue;
   }
 
+  document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const selPat = urlParams.get('selected_patient');
+    if (selPat) {
+      selectPatientForDashboard(selPat);
+    }
+  });
+
   fetchCompounderNotifications();
   setInterval(fetchCompounderNotifications, 12000);
 })();

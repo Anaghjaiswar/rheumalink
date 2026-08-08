@@ -140,6 +140,17 @@ def compounder_dashboard(request):
 	medical_form_bound = None
 	report_form_bound = None
 
+	def _redirect_cmp(patient_id=None):
+		search_q_val = request.POST.get("search_q") or request.GET.get("search_q", "").strip()
+		pid = patient_id or request.POST.get("patient_id") or request.POST.get("patient")
+		params = []
+		if search_q_val:
+			params.append(f"search_q={search_q_val}")
+		if pid:
+			params.append(f"selected_patient={pid}")
+		query = "?" + "&".join(params) if params else ""
+		return redirect(f"/compounder-dashboard/{query}")
+
 	if request.method == "POST":
 
 		action = request.POST.get("action")
@@ -154,7 +165,7 @@ def compounder_dashboard(request):
 					file_rec.external_file_number = ext_num
 					file_rec.save()
 				messages.success(request, f"Patient '{patient.get_full_name()}' registered successfully. File Record: {file_rec.internal_file_number}")
-				return redirect("compounder-dashboard")
+				return _redirect_cmp(patient.id)
 			else:
 				patient_form_bound = patient_form
 				err_list = [f"{k.replace('_', ' ').title()}: {v[0]}" for k, v in patient_form.errors.items()]
@@ -166,7 +177,7 @@ def compounder_dashboard(request):
 				appointment = appointment_form.save()
 				messages.success(request, f"Appointment created with token {appointment.token_number}.")
 				_broadcast_queue_update(appointment.doctor_id)
-				return redirect("compounder-dashboard")
+				return _redirect_cmp(appointment.patient_id)
 			else:
 				appointment_form_bound = appointment_form
 				err_list = [f"{k.replace('_', ' ').title()}: {v[0]}" for k, v in appointment_form.errors.items()]
@@ -182,7 +193,7 @@ def compounder_dashboard(request):
 				vitals.patient = appointment.patient
 				vitals.save()
 				messages.success(request, "Vitals saved.")
-				return redirect("compounder-dashboard")
+				return _redirect_cmp(appointment.patient_id)
 			else:
 				vitals_form_bound = vitals_form
 				messages.error(request, "Invalid vitals data.")
@@ -194,7 +205,7 @@ def compounder_dashboard(request):
 				updated = update_form.save()
 				messages.success(request, "Appointment updated.")
 				_broadcast_queue_update(updated.doctor_id)
-				return redirect("compounder-dashboard")
+				return _redirect_cmp(updated.patient_id)
 			else:
 				messages.error(request, "Could not update appointment.")
 
@@ -212,7 +223,7 @@ def compounder_dashboard(request):
 					comorbidity, _ = Comorbidity.objects.get_or_create(name=custom.strip())
 					medical_info.comorbidities.add(comorbidity)
 				messages.success(request, "Patient medical info saved.")
-				return redirect("compounder-dashboard")
+				return _redirect_cmp(patient.id)
 			else:
 				medical_form_bound = medical_form
 				messages.error(request, "Medical info is invalid.")
@@ -220,9 +231,9 @@ def compounder_dashboard(request):
 		elif action == "upload_lab_report":
 			report_form = LabResultForm(request.POST, request.FILES)
 			if report_form.is_valid():
-				report_form.save()
+				report = report_form.save()
 				messages.success(request, "Lab report uploaded.")
-				return redirect("compounder-dashboard")
+				return _redirect_cmp(report.patient_id)
 			else:
 				report_form_bound = report_form
 				messages.error(request, "Lab report upload failed.")
@@ -231,7 +242,7 @@ def compounder_dashboard(request):
 			report = get_object_or_404(LabResult, id=request.POST.get("report_id"))
 			process_lab_report_task.delay(report.id)
 			messages.success(request, "Lab report sync triggered on primary worker.")
-			return redirect("compounder-dashboard")
+			return _redirect_cmp(report.patient_id)
 
 	search_q = request.GET.get("search_q", "").strip()
 	is_recent_list = False
@@ -444,10 +455,12 @@ def doctor_dashboard(request):
 			process_lab_report_task.delay(report.id)
 			messages.success(request, "Lab report sync requested.")
 
+		search_q_post = request.POST.get("search_q") or request.GET.get("search_q", "").strip()
 		doctor_param = f"doctor={doctor_id}" if doctor_id else ""
 		appt_param = f"active_appt={active_appt_id}" if active_appt_id else ""
 		download_param = f"download_rx_id={download_rx_id}" if download_rx_id else ""
-		params = [p for p in [doctor_param, appt_param, download_param] if p]
+		search_param = f"search_q={search_q_post}" if search_q_post else ""
+		params = [p for p in [doctor_param, appt_param, download_param, search_param] if p]
 		query = "?" + "&".join(params) if params else ""
 		return redirect(f"/doctor-dashboard/{query}")
 
@@ -476,6 +489,7 @@ def doctor_dashboard(request):
 	api_access_token = settings_obj.api_access_token if settings_obj else ""
 
 	context = {
+		"doctor_id": doctor_id,
 		"doctor_form": DoctorFilterForm(initial={"doctor": doctor_id}),
 		"selected_doctor": selected_doctor,
 		"appointments": appointments,
