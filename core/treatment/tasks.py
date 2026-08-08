@@ -118,3 +118,31 @@ def cleanup_unverified_lab_reports_task():
     except Exception as e:
         logger.error(f"Error in cleanup_unverified_lab_reports_task: {str(e)}")
         return f"Error: {str(e)}"
+
+
+@shared_task(name="generate_prescription_pdf_task", queue="primary")
+def generate_prescription_pdf_task(prescription_id):
+    """
+    Background Celery task to generate prescription PDF and save to storage asynchronously.
+    """
+    from django.core.files.base import ContentFile
+    from .models import Prescription
+    from .views import _generate_prescription_pdf
+
+    try:
+        prescription = Prescription.objects.select_related(
+            "consultation__patient__filerecord",
+            "consultation__appointment__doctor",
+        ).get(id=prescription_id)
+
+        pdf_bytes = _generate_prescription_pdf(prescription)
+        prescription.prescription_pdf.save(
+            f"rx_{prescription.consultation_id}.pdf",
+            ContentFile(pdf_bytes),
+            save=True,
+        )
+        logger.info(f"Successfully generated prescription PDF for ID {prescription_id}")
+        return {"ok": True, "prescription_id": prescription_id}
+    except Exception as e:
+        logger.error(f"Error in generate_prescription_pdf_task for ID {prescription_id}: {str(e)}")
+        return {"ok": False, "error": str(e)}

@@ -62,19 +62,46 @@ def _broadcast_queue_update(doctor_id=None):
 
 
 def _generate_prescription_pdf(prescription):
-	"""Generates prescription PDF using the central Gotenberg HTML-to-PDF engine."""
+	"""Generates prescription PDF using the central Gotenberg HTML-to-PDF engine with query & caching optimizations."""
 	from django.template.loader import render_to_string
+	from django.core.cache import cache
 	from clinic.models import ClinicSettings
 	from services.ai_service_manager import AIServiceManager
-	
-	clinic = ClinicSettings.objects.first()
+	from .models import Prescription
+
+	# Optimization 1: Cache ClinicSettings lookup to avoid hitting DB on every PDF render
+	clinic = cache.get("clinic_settings_cached")
+	if clinic is None:
+		clinic = ClinicSettings.objects.select_related("address").first()
+		if clinic:
+			cache.set("clinic_settings_cached", clinic, 300)
+
+	# Optimization 2: Pre-fetch all necessary relational objects in 1 optimized SQL query if not loaded
+	if not (hasattr(prescription, '_state') and getattr(prescription._state, 'fields_cache', None) and 'consultation' in prescription._state.fields_cache):
+		prescription = (
+			Prescription.objects.select_related(
+				"consultation__patient__filerecord",
+				"consultation__appointment__doctor",
+			)
+			.prefetch_related(
+				"items__medicine",
+				"prescribed_tests",
+			)
+			.get(id=prescription.id)
+		)
+
 	consultation = prescription.consultation
-	patient = consultation.patient
-	doctor = consultation.appointment.doctor
+	patient = consultation.patient if consultation else None
+	doctor = consultation.appointment.doctor if (consultation and consultation.appointment) else None
 	prescription_items = prescription.items.select_related("medicine").all()
 	prescribed_tests = prescription.prescribed_tests.all()
 	
-	file_number = patient.filerecord.internal_file_number if hasattr(patient, 'filerecord') else '-'
+	file_number = '-'
+	if patient and hasattr(patient, 'filerecord'):
+		try:
+			file_number = patient.filerecord.internal_file_number
+		except Exception:
+			file_number = '-'
 	
 	context = {
 		"clinic": clinic,
@@ -337,17 +364,23 @@ def doctor_dashboard(request):
 						instructions=instructions[idx] if idx < len(instructions) else "",
 					)
 
-				pdf_bytes = _generate_prescription_pdf(prescription)
-				prescription.prescription_pdf.save(
-					f"rx_{consultation.id}.pdf",
-					ContentFile(pdf_bytes),
-					save=True,
-				)
+				# Offload PDF generation to Celery background task
+				from .tasks import generate_prescription_pdf_task
+				try:
+					generate_prescription_pdf_task.delay(prescription.id)
+				except Exception:
+					# Fallback synchronously if Celery broker is unavailable
+					pdf_bytes = _generate_prescription_pdf(prescription)
+					prescription.prescription_pdf.save(
+						f"rx_{consultation.id}.pdf",
+						ContentFile(pdf_bytes),
+						save=True,
+					)
 
 				appointment.status = request.POST.get("post_consult_status") or appointment.status
 				appointment.save(update_fields=["status", "updated_at"])
 				_broadcast_queue_update(appointment.doctor_id)
-				messages.success(request, "Consultation, prescription, and PDF saved.")
+				messages.success(request, "Consultation and prescription saved.")
 				download_rx_id = prescription.id
 			else:
 				messages.error(request, "Consultation form contains invalid data.")
@@ -815,14 +848,24 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 def download_prescription_pdf(request, prescription_id):
 	"""
 	Downloads or displays the prescription PDF directly, resolving it from the S3/MinIO or local storage backend.
+	Generates PDF on-demand if background generation is still pending.
 	"""
 	from django.shortcuts import get_object_or_404
 	from django.http import HttpResponse, Http404
+	from django.core.files.base import ContentFile
 	from .models import Prescription
 	
 	prescription = get_object_or_404(Prescription, id=prescription_id)
 	if not prescription.prescription_pdf:
-		raise Http404("PDF has not been generated for this prescription.")
+		try:
+			pdf_bytes = _generate_prescription_pdf(prescription)
+			prescription.prescription_pdf.save(
+				f"rx_{prescription.consultation_id}.pdf",
+				ContentFile(pdf_bytes),
+				save=True,
+			)
+		except Exception as e:
+			raise Http404(f"Prescription PDF generation in progress or failed: {e}")
 		
 	try:
 		with prescription.prescription_pdf.open('rb') as f:
