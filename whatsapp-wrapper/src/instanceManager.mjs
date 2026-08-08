@@ -1,5 +1,6 @@
 // src/instanceManager.mjs
-import makeWASocket, { DisconnectReason } from '@whiskeysockets/baileys'
+import makeWASocket, { DisconnectReason, Browsers, fetchLatestBaileysVersion } from '@whiskeysockets/baileys'
+import qrcodeTerminal from 'qrcode-terminal'
 import { createPostgresAuthState } from './instance.mjs'
 import { readGroupRegistry, writeGroupRegistry, clearAllData } from './db.mjs'
 
@@ -66,10 +67,20 @@ export async function initInstance() {
 
   await initializeGroupRegistry()
   const { state, saveCreds } = await createPostgresAuthState()
+  
+  let version
+  try {
+    const fetched = await fetchLatestBaileysVersion()
+    version = fetched.version
+    console.log(`Using fetched WA Web version: v${version.join('.')}`)
+  } catch (err) {
+    console.warn('Could not fetch latest WA version, using default:', err.message)
+  }
 
   const newSock = makeWASocket({
+    ...(version ? { version } : {}),
     auth: state,
-    browser: ['Baileys v7 API', 'Chrome', '1.0.0'],
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
     cachedGroupMetadata: getOrFetchGroupMetadata,
   })
@@ -82,9 +93,16 @@ export async function initInstance() {
   newSock.ev.on('connection.update', async (update) => {
     const { connection, qr, lastDisconnect } = update
 
-    if (qr) latestQR = qr
+    if (qr) {
+      latestQR = qr
+      console.log('\n📸 NEW WHATSAPP QR CODE GENERATED! Access via http://127.0.0.1:3333/qr.png or scan below:\n')
+      try {
+        qrcodeTerminal.generate(qr, { small: true })
+      } catch (e) {}
+    }
     if (connection === 'open') {
-      console.log('✅ WhatsApp connected')
+      console.log('✅ WhatsApp connected successfully!')
+      latestQR = null
     }
 
     if (connection === 'close') {

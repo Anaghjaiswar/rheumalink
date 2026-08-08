@@ -141,14 +141,8 @@ def compounder_dashboard(request):
 	report_form_bound = None
 
 	def _redirect_cmp(patient_id=None):
-		search_q_val = request.POST.get("search_q") or request.GET.get("search_q", "").strip()
 		pid = patient_id or request.POST.get("patient_id") or request.POST.get("patient")
-		params = []
-		if search_q_val:
-			params.append(f"search_q={search_q_val}")
-		if pid:
-			params.append(f"selected_patient={pid}")
-		query = "?" + "&".join(params) if params else ""
+		query = f"?selected_patient={pid}" if pid else ""
 		return redirect(f"/compounder-dashboard/{query}")
 
 	if request.method == "POST":
@@ -455,12 +449,10 @@ def doctor_dashboard(request):
 			process_lab_report_task.delay(report.id)
 			messages.success(request, "Lab report sync requested.")
 
-		search_q_post = request.POST.get("search_q") or request.GET.get("search_q", "").strip()
 		doctor_param = f"doctor={doctor_id}" if doctor_id else ""
 		appt_param = f"active_appt={active_appt_id}" if active_appt_id else ""
 		download_param = f"download_rx_id={download_rx_id}" if download_rx_id else ""
-		search_param = f"search_q={search_q_post}" if search_q_post else ""
-		params = [p for p in [doctor_param, appt_param, download_param, search_param] if p]
+		params = [p for p in [doctor_param, appt_param, download_param] if p]
 		query = "?" + "&".join(params) if params else ""
 		return redirect(f"/doctor-dashboard/{query}")
 
