@@ -898,6 +898,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const tokenNumber = row.getAttribute('data-token-number');
       const patientName = row.getAttribute('data-patient-name');
       startPatientConsultation(activeApptId, patientId, tokenNumber, patientName);
+    } else {
+      fetch(`/api/diagnosis-status/${activeApptId}/`)
+        .then(resp => resp.json())
+        .then(data => {
+          if (data && data.patient_id) {
+            startPatientConsultation(activeApptId, data.patient_id, data.token_number || activeApptId, data.patient_name || 'Patient');
+          }
+        })
+        .catch(() => {});
     }
   }
 });

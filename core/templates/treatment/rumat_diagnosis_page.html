@@ -897,8 +897,12 @@
     if (cancelBtn) {
       cancelBtn.addEventListener('click', function() {
         const doctorId = '{{ doctor_id }}';
-        const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
-        window.location.href = '/doctor-dashboard/' + doctorParam;
+        const apptId = '{{ appointment.id }}';
+        const docParam = doctorId ? ('doctor=' + doctorId) : '';
+        const apptParam = apptId ? ('active_appt=' + apptId) : '';
+        const params = [docParam, apptParam].filter(Boolean).join('&');
+        const query = params ? ('?' + params) : '';
+        window.location.href = '/doctor-dashboard/' + query;
       });
     }
 

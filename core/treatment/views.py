@@ -522,8 +522,11 @@ def joint_chart_page(request, appointment_id):
 			record.patient_link = patient
 			record.save()
 			messages.success(request, "Joint chart saved successfully.")
-			doctor_id = request.GET.get("doctor")
-			query = f"?doctor={doctor_id}" if doctor_id else ""
+			doctor_id = request.GET.get("doctor") or request.POST.get("doctor_id")
+			doc_param = f"doctor={doctor_id}" if doctor_id else ""
+			appt_param = f"active_appt={appointment_id}"
+			params = [p for p in [doc_param, appt_param] if p]
+			query = "?" + "&".join(params)
 			return redirect(f"/doctor-dashboard/{query}")
 		messages.error(request, "Could not save joint chart. Please review inputs.")
 	else:
@@ -704,6 +707,9 @@ def get_diagnosis_status(request, appointment_id):
 		existing_diag = PatientDiagnosis.objects.filter(consultation_link=consultation).first()
 
 	return JsonResponse({
+		"patient_id": patient.id,
+		"patient_name": patient.get_full_name(),
+		"token_number": appointment.token_number,
 		"has_joint_chart": has_joint_chart,
 		"joint_details": joint_details,
 		"has_rumat_checklist": has_rumat_checklist,
@@ -819,8 +825,11 @@ def rumat_diagnosis_page(request, appointment_id):
 
 			patient_diag.save()
 			messages.success(request, "Rheumat Diagnosis saved successfully.")
-			doctor_id = request.GET.get("doctor")
-			query = f"?doctor={doctor_id}" if doctor_id else ""
+			doctor_id = request.GET.get("doctor") or request.POST.get("doctor_id")
+			doc_param = f"doctor={doctor_id}" if doctor_id else ""
+			appt_param = f"active_appt={appointment_id}"
+			params = [p for p in [doc_param, appt_param] if p]
+			query = "?" + "&".join(params)
 			return redirect(f"/doctor-dashboard/{query}")
 		else:
 			messages.error(request, "Failed to save Rheumat Diagnosis. Please check errors.")
