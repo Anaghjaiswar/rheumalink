@@ -39,9 +39,9 @@
 <section class="panel">
   <h2>Patient & File Search</h2>
   <form method="get" style="display: flex; gap: 8px; align-items: center; margin-bottom: 0;">
-    <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ request.GET.search_q|default:'' }}" style="flex: 1; margin: 0;">
+    <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ search_q|default:'' }}" style="flex: 1; margin: 0;">
     <button type="submit" style="margin: 0; width: auto; padding: 10px 20px;">Search</button>
-    {% if request.GET.search_q %}
+    {% if search_q %}
       <a href="?" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
     {% endif %}
   </form>
@@ -78,8 +78,8 @@
         </tbody>
       </table>
     </div>
-  {% elif request.GET.search_q %}
-    <p style="margin-top: 15px; color: var(--muted);">No patients found matching "{{ request.GET.search_q }}".</p>
+  {% elif search_q %}
+    <p style="margin-top: 15px; color: var(--muted);">No patients found matching "{{ search_q }}".</p>
   {% endif %}
 </section>
 

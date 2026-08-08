@@ -54,11 +54,11 @@
 <section class="panel">
   <h2>Patient & File Search</h2>
   <form method="get" style="display: flex; gap: 8px; align-items: center; margin-bottom: 0;">
-    <input type="hidden" name="doctor" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
-    <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ request.GET.search_q|default:'' }}" style="flex: 1; margin: 0;">
+    <input type="hidden" name="doctor" value="{{ doctor_id|default:'' }}">
+    <input type="text" name="search_q" placeholder="Search by name, phone, or internal/external file number..." value="{{ search_q|default:'' }}" style="flex: 1; margin: 0;">
     <button type="submit" style="margin: 0; width: auto; padding: 10px 20px;">Search</button>
-    {% if request.GET.search_q %}
-      <a href="?doctor={{ doctor_id|default:request.GET.doctor|default:'' }}" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
+    {% if search_q %}
+      <a href="?doctor={{ doctor_id|default:'' }}" class="button alt" style="margin: 0; padding: 10px 20px; text-decoration: none; display: inline-block; border: 1px solid var(--line); border-radius: 4px;">Clear</a>
     {% endif %}
   </form>
 
@@ -91,8 +91,8 @@
         </tbody>
       </table>
     </div>
-  {% elif request.GET.search_q %}
-    <p style="margin-top: 15px; color: var(--muted);">No patients found matching "{{ request.GET.search_q }}".</p>
+  {% elif search_q %}
+    <p style="margin-top: 15px; color: var(--muted);">No patients found matching "{{ search_q }}".</p>
   {% endif %}
 </section>
 
@@ -115,14 +115,14 @@
             <td>{{ item.token_number }}</td>
             <td>{{ item.patient.get_full_name }}</td>
             <td>
-              <a href="{% url 'joint-chart-page' item.id %}?doctor={{ request.GET.doctor }}">Make/View</a>
+              <a href="{% url 'joint-chart-page' item.id %}?doctor={{ doctor_id|default:'' }}">Make/View</a>
             </td>
             <td>
               <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="update_status">
                 <input type="hidden" name="appointment_id" value="{{ item.id }}">
-                <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
+                <input type="hidden" name="doctor_id" value="{{ doctor_id|default:'' }}">
                 <select name="status">
                   {% for k, v in item.STATUS_CHOICES %}
                     <option value="{{ k }}" {% if item.status == k %}selected{% endif %}>{{ v }}</option>
@@ -166,7 +166,7 @@
             <td>{{ item.token_number }}</td>
             <td>{{ item.patient.get_full_name }}</td>
             <td>
-              <a href="{% url 'joint-chart-page' item.id %}?doctor={{ request.GET.doctor }}">View</a>
+              <a href="{% url 'joint-chart-page' item.id %}?doctor={{ doctor_id|default:'' }}">View</a>
             </td>
             <td>{{ item.get_status_display }}</td>
             <td>
@@ -237,7 +237,7 @@
         <form method="post" action="">
           {% csrf_token %}
           <input type="hidden" name="action" value="capture_vitals">
-          <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
+          <input type="hidden" name="doctor_id" value="{{ doctor_id|default:'' }}">
           <input type="hidden" name="appointment_id" class="active-appointment-id-field">
           <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
           
@@ -329,7 +329,7 @@
         <form method="post" action="">
           {% csrf_token %}
           <input type="hidden" name="action" value="save_medical_info_doctor">
-          <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
+          <input type="hidden" name="doctor_id" value="{{ doctor_id|default:'' }}">
           <input type="hidden" name="patient_id" id="doctor_patient_id" class="active-patient-id-field">
           <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
           
@@ -418,7 +418,7 @@
     <form method="post" id="consultation-form">
       {% csrf_token %}
       <input type="hidden" name="action" value="save_consultation">
-      <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
+      <input type="hidden" name="doctor_id" value="{{ doctor_id|default:'' }}">
       <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
       <label for="appointment_id">Appointment</label>
       <select name="appointment_id" id="appointment_id" required>
@@ -511,7 +511,7 @@
     <form method="post">
       {% csrf_token %}
       <input type="hidden" name="action" value="save_diagnosis">
-      <input type="hidden" name="doctor_id" value="{{ doctor_id|default:request.GET.doctor|default:'' }}">
+      <input type="hidden" name="doctor_id" value="{{ doctor_id|default:'' }}">
       <input type="hidden" name="active_appt_id" class="active-appointment-id-field">
 
       <label for="diagnosis_appointment">Appointment</label>

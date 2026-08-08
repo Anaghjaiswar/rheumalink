@@ -482,6 +482,7 @@ def doctor_dashboard(request):
 
 	context = {
 		"doctor_id": doctor_id,
+		"search_q": search_q,
 		"doctor_form": DoctorFilterForm(initial={"doctor": doctor_id}),
 		"selected_doctor": selected_doctor,
 		"appointments": appointments,
