@@ -1,8 +1,18 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Joint Chart{% endblock %}
 
 {% block extra_head %}
 <style>
+  .circle {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
   .chart-shell {
     display: grid;
     grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
@@ -11,7 +21,7 @@
   }
 
   .skeleton-canvas {
-    background: #f5f3ed;
+    background: #ffffff;
     border: 1px solid var(--line);
     padding: 14px;
     overflow-x: auto;
@@ -19,136 +29,10 @@
 
   .skeleton-stage {
     position: relative;
-    min-height: 900px;
-  }
-
-  .skeleton-svg {
-    display: block;
-    width: 100%;
-    min-width: 860px;
-    max-width: 980px;
+    width: 750px;
+    height: 1110px;
     margin: 0 auto;
-  }
-
-  .skeleton-bone {
-    fill: none;
-    stroke: #2a2a2a;
-    stroke-width: 2.5;
-  }
-
-  .skeleton-bone-thin {
-    fill: none;
-    stroke: #2a2a2a;
-    stroke-width: 1.8;
-  }
-
-  .skeleton-bone-fine {
-    fill: none;
-    stroke: #2a2a2a;
-    stroke-width: 1.5;
-  }
-
-  .skeleton-side-label {
-    font-size: 120px;
-    font-weight: 900;
-    fill: #e5e2d8;
-    user-select: none;
-    pointer-events: none;
-  }
-
-  .joint-text-label {
-    fill: #5f6b76;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    user-select: none;
-    pointer-events: none;
-    paint-order: stroke;
-    stroke: #f5f3ed;
-    stroke-width: 4px;
-    stroke-linejoin: round;
-  }
-
-  .joint-order-label {
-    fill: #4b5563;
-    font-size: 10px;
-    font-weight: 700;
-    user-select: none;
-    pointer-events: none;
-    paint-order: stroke;
-    stroke: #f5f3ed;
-    stroke-width: 3px;
-    stroke-linejoin: round;
-  }
-
-  .legend-box {
-    position: absolute;
-    left: 12px;
-    top: 12px;
-    z-index: 3;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
-    padding: 14px;
-    width: min(100%, 240px);
-  }
-
-  .legend-title {
-    margin: 0 0 10px;
-    color: #1f2937;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .legend-list {
-    display: grid;
-    gap: 8px;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #374151;
-    font-size: 0.84rem;
-    font-weight: 600;
-  }
-
-  .dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
-  }
-
-  .legend-click {
-    color: #9ca3af;
-    font-size: 0.78rem;
-    font-weight: 500;
-  }
-
-  .joint-marker {
-    transition: fill 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
-    pointer-events: none;
-  }
-
-  .joint-hit {
-    fill: transparent;
-    stroke: transparent;
-    cursor: pointer;
-    transition: fill 0.2s ease, stroke 0.2s ease;
-  }
-
-  .joint-hit:hover,
-  .joint-hit:focus-visible {
-    fill: rgba(148, 163, 184, 0.16);
-    stroke: #9ca3af;
-    stroke-width: 2;
-    outline: none;
+    text-align: left;
   }
 
   .side-card {
@@ -180,14 +64,8 @@
       grid-template-columns: 1fr;
     }
 
-    .legend-box {
-      position: static;
-      margin-bottom: 10px;
-      width: 100%;
-    }
-
     .skeleton-stage {
-      min-height: auto;
+      margin: 0 auto;
     }
 
     .side-card {
@@ -212,246 +90,185 @@
   {% csrf_token %}
   <section class="chart-shell">
     <article class="panel skeleton-canvas">
-      <div style="margin-bottom:10px;">
-        <h3 style="margin:0;">Interactive Joint Skeleton</h3>
-        <p style="margin:4px 0 0; color:var(--muted); font-size:0.84rem;">
-          Exact Figma-style skeleton chart. Click a joint area to cycle through swelling and tenderness states.
+      <div style="margin-bottom:14px; text-align:center;">
+        <h3 style="margin:0; font-size:1.5rem; font-weight:bold;">Swollen Joint Count (44 Joints)</h3>
+        <p style="margin:4px 0 0; color:var(--muted); font-size:0.86rem;">
+          Click a joint area to cycle through swelling and tenderness states.
         </p>
       </div>
 
       <div class="skeleton-stage">
-        <div class="legend-box">
-          <h4 class="legend-title">Condition Legend</h4>
-          <div class="legend-list">
-            <div class="legend-item"><span class="dot" style="background:#ef4444;"></span>Swollen <span class="legend-click">(1 Click)</span></div>
-            <div class="legend-item"><span class="dot" style="background:#3b82f6;"></span>Tender <span class="legend-click">(2 Clicks)</span></div>
-            <div class="legend-item"><span class="dot" style="background:#facc15;"></span>Both <span class="legend-click">(3 Clicks)</span></div>
-            <div class="legend-item"><span class="dot" style="background:#c4cdd5;"></span>No Pain <span class="legend-click">(4 Clicks)</span></div>
-          </div>
+        <img src="{% static 'css/images/hd_hglt.gif' %}" alt="homunculus" />
+
+        <div style="position:absolute;left:80px;top:65px;height:55px;width:55px;">
+           <h1 class="text-larger" style="font-size: 55px; margin:0; font-weight:bold; color:#333;">R</h1>
         </div>
 
-        <svg viewBox="0 0 1000 950" class="skeleton-svg" aria-label="Joint skeleton chart">
-          <text x="120" y="500" text-anchor="middle" class="skeleton-side-label">L</text>
-          <text x="880" y="500" text-anchor="middle" class="skeleton-side-label">R</text>
+        <div style="position:absolute;right:10px;top:15px; z-index:10;">
+           <div class="color-info p-2 border" style="background:#ffffff; border:1px solid #d1d5db; border-radius:8px; padding:12px; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+              <h4 style="margin:0 0 8px 0; font-size:0.95rem; font-weight:700; color:#1f2937;">Color Descriptions:</h4>
+              <p style="margin: 5px 0; font-size:0.88rem; color:#374151;">
+                 <span class="circle" style="background-color: red;"></span> Swollen
+              </p>
+              <p style="margin: 5px 0; font-size:0.88rem; color:#374151;">
+                 <span class="circle" style="background-color: blue;"></span> Tender
+              </p>
+              <p style="margin: 5px 0; font-size:0.88rem; color:#374151;">
+                 <span class="circle" style="background-color: orange;"></span> Both Swollen and Tender
+              </p>
+              <p style="margin: 5px 0; font-size:0.88rem; color:#374151;">
+                 <span class="circle" style="background-color: transparent; border: 1px solid #000;"></span> No Pain
+              </p>
+           </div>
+        </div>
 
-          <text x="438" y="166" text-anchor="end" class="joint-text-label">SC (L)</text>
-          <text x="562" y="166" class="joint-text-label">SC (R)</text>
-          <text x="398" y="154" text-anchor="end" class="joint-text-label">AC (L)</text>
-          <text x="602" y="154" class="joint-text-label">AC (R)</text>
+        <div style="position:absolute;left:278px;top:145px;height:44px;width:44px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="2divacromioclavicularright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:12px; top:12px;"><label class="label_check" for="acromioclavicularright"><input type="text" name="acromioclavicularright" value="nopain" id="acromioclavicularright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:418px;top:145px;height:44px;width:44px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="2divacromioclavicularleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:12px; top:12px;"><label class="label_check" for="acromioclavicularleft"><input type="text" name="acromioclavicularleft" value="nopain" id="acromioclavicularleft">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:324px;top:169px;height:44px;width:44px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="2divsternoclavicularright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:12px; top:12px;"><label class="label_check" for="sternoclavicularright"><input type="text" name="sternoclavicularright" value="nopain" id="sternoclavicularright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:372px;top:169px;height:44px;width:44px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="2divsternoclavicularleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:12px; top:12px;"><label class="label_check" for="sternoclavicularleft"><input type="text" name="sternoclavicularleft" value="nopain" id="sternoclavicularleft">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:234px;top:174px;height:58px;width:58px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="3divshoulderright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:19px; top:19px;"><label class="label_check" for="shoulderright"><input type="text" name="shoulderright" value="nopain" id="shoulderright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:448px;top:174px;height:58px;width:58px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="3divshoulderleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:19px; top:19px;"><label class="label_check" for="shoulderleft"><input type="text" name="shoulderleft" value="nopain" id="shoulderleft" onclick="event.stopPropagation();">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:227px;top:310px;height:66px;width:66px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="4divelbowright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:23px; top:23px;"><label class="label_check" for="elbowright"><input type="text" name="elbowright" value="nopain" id="elbowright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:447px;top:310px;height:66px;width:66px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="4divelbowleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:23px; top:23px;"><label class="label_check" for="elbowleft"><input type="text" name="elbowleft" value="nopain" id="elbowleft">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:194px;top:446px;height:66px;width:66px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="4divwristright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:23px; top:23px;"><label class="label_check" for="wristright"><input type="text" name="wristright" value="nopain" id="wristright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:479px;top:446px;height:66px;width:66px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="4divwristleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:23px; top:23px;"><label class="label_check" for="wristleft"><input type="text" name="wristleft" value="nopain" id="wristleft">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:125px;top:487px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip5right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip5right"><input type="text" name="pip5right" value="nopain" id="pip5right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:581px;top:487px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip5left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip5left"><input type="text" name="pip5left" value="nopain" id="pip5left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:148px;top:518px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip4right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip4right"><input type="text" name="pip4right" value="nopain" id="pip4right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:558px;top:518px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip4left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip4left"><input type="text" name="pip4left" value="nopain" id="pip4left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:82px;top:522px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp5right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp5right"><input type="text" name="mcp5right" value="nopain" id="mcp5right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:622px;top:522px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp5left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp5left"><input type="text" name="mcp5left" value="nopain" id="mcp5left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:174px;top:544px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip3right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip3right"><input type="text" name="pip3right" value="nopain" id="pip3right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:533px;top:544px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip3left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip3left"><input type="text" name="pip3left" value="nopain" id="pip3left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:103px;top:567px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp4right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp4right"><input type="text" name="mcp4right" value="nopain" id="mcp4right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:604px;top:567px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp4left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp4left"><input type="text" name="mcp4left" value="nopain" id="mcp4left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:202px;top:571px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip2right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip2right"><input type="text" name="pip2right" value="nopain" id="pip2right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:507px;top:571px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip2left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip2left"><input type="text" name="pip2left" value="nopain" id="pip2left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:225px;top:598px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip1right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip1right"><input type="text" name="pip1right" value="nopain" id="pip1right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:483px;top:598px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divpip1left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="pip1left"><input type="text" name="pip1left" value="nopain" id="pip1left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:129px;top:598px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp3right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp3right"><input type="text" name="mcp3right" value="nopain" id="mcp3right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:577px;top:598px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp3left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp3left"><input type="text" name="mcp3left" value="nopain" id="mcp3left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:164px;top:620px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp2right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp2right"><input type="text" name="mcp2right" value="nopain" id="mcp2right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:542px;top:620px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp2left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp2left"><input type="text" name="mcp2left" value="nopain" id="mcp2left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:212px;top:640px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp1right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp1right"><input type="text" name="mcp1right" value="nopain" id="mcp1right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:495px;top:640px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmcp1left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mcp1left"><input type="text" name="mcp1left" value="nopain" id="mcp1left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:276px;top:654px;height:71px;width:71px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;background-size:cover;cursor:pointer;" id="4divkneeright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:23px; top:23px;"><label class="label_check" for="kneeright"><input type="text" name="kneeright" value="nopain" id="kneeright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:393px;top:654px;height:71px;width:71px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;background-size:cover;cursor:pointer;" id="4divkneeleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:23px; top:23px;"><label class="label_check" for="kneeleft"><input type="text" name="kneeleft" value="nopain" id="kneeleft">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:280px;top:823px;height:58px;width:58px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="3divankleright" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:19px; top:19px;"><label class="label_check" for="ankleright"><input type="text" name="ankleright" value="nopain" id="ankleright">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:403px;top:821px;height:58px;width:58px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="3divankleleft" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:19px; top:19px;"><label class="label_check" for="ankleleft"><input type="text" name="ankleleft" value="nopain" id="ankleleft">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:123px;top:950px;height:39px;width:39px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;background-size:cover;cursor:pointer;" id="1divmtp5right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:9px; top:9px;"><label class="label_check" for="mtp5right"><input type="text" name="mtp5right" value="nopain" id="mtp5right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:579px;top:947px;height:39px;width:39px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;background-size:cover;cursor:pointer;" id="1divmtp5left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:9px; top:9px;"><label class="label_check" for="mtp5left"><input type="text" name="mtp5left" value="nopain" id="mtp5left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:162px;top:971px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp4right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp4right"><input type="text" name="mtp4right" value="nopain" id="mtp4right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:544px;top:968px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp4left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp4left"><input type="text" name="mtp4left" value="nopain" id="mtp4left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:196px;top:988px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp3right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp3right"><input type="text" name="mtp3right" value="nopain" id="mtp3right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:511px;top:985px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp3left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp3left"><input type="text" name="mtp3left" value="nopain" id="mtp3left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:231px;top:995px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp2right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp2right"><input type="text" name="mtp2right" value="nopain" id="mtp2right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:266px;top:994px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp1right" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp1right"><input type="text" name="mtp1right" value="nopain" id="mtp1right">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:442px;top:991px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp1left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp1left"><input type="text" name="mtp1left" value="nopain" id="mtp1left">&nbsp;</label></div>
+        </div>
+        <div style="position:absolute;left:477px;top:992px;height:34px;width:33px;background-image:url({% static 'css/images/transparent.png' %});background-repeat:no-repeat;cursor:pointer;" id="1divmtp2left" onclick="swapimage(this, event);">
+           <div style="position:absolute;display:none; left:7px; top:7px;"><label class="label_check" for="mtp2left"><input type="text" name="mtp2left" value="nopain" id="mtp2left">&nbsp;</label></div>
+        </div>
+      </div>
 
-          <text x="294" y="188" text-anchor="end" class="joint-text-label">Shoulder</text>
-          <text x="706" y="188" class="joint-text-label">Shoulder</text>
-          <text x="324" y="322" text-anchor="end" class="joint-text-label">Elbow</text>
-          <text x="676" y="322" class="joint-text-label">Elbow</text>
-          <text x="294" y="422" text-anchor="end" class="joint-text-label">Wrist</text>
-          <text x="706" y="422" class="joint-text-label">Wrist</text>
-          <text x="148" y="498" text-anchor="middle" class="joint-text-label">MCP + PIP</text>
-          <text x="852" y="498" text-anchor="middle" class="joint-text-label">MCP + PIP</text>
-          <text x="438" y="632" text-anchor="end" class="joint-text-label">Knee</text>
-          <text x="562" y="632" class="joint-text-label">Knee</text>
-          <text x="432" y="820" text-anchor="end" class="joint-text-label">Ankle</text>
-          <text x="568" y="820" class="joint-text-label">Ankle</text>
-          <text x="364" y="898" text-anchor="end" class="joint-text-label">MTP</text>
-          <text x="636" y="898" class="joint-text-label">MTP</text>
-
-          <text x="711" y="546" class="joint-order-label">1</text>
-          <text x="784" y="562" class="joint-order-label">2</text>
-          <text x="784" y="532" class="joint-order-label">3</text>
-          <text x="786" y="498" class="joint-order-label">4</text>
-          <text x="760" y="470" class="joint-order-label">5</text>
-
-          <text x="289" y="546" text-anchor="end" class="joint-order-label">1</text>
-          <text x="216" y="562" text-anchor="end" class="joint-order-label">2</text>
-          <text x="216" y="532" text-anchor="end" class="joint-order-label">3</text>
-          <text x="214" y="498" text-anchor="end" class="joint-order-label">4</text>
-          <text x="240" y="470" text-anchor="end" class="joint-order-label">5</text>
-
-          <text x="655" y="818" class="joint-order-label">1</text>
-          <text x="660" y="842" class="joint-order-label">2</text>
-          <text x="650" y="864" class="joint-order-label">3</text>
-          <text x="635" y="884" class="joint-order-label">4</text>
-          <text x="614" y="905" class="joint-order-label">5</text>
-
-          <text x="345" y="818" text-anchor="end" class="joint-order-label">1</text>
-          <text x="340" y="842" text-anchor="end" class="joint-order-label">2</text>
-          <text x="350" y="864" text-anchor="end" class="joint-order-label">3</text>
-          <text x="365" y="884" text-anchor="end" class="joint-order-label">4</text>
-          <text x="386" y="905" text-anchor="end" class="joint-order-label">5</text>
-
-          <ellipse cx="500" cy="90" rx="55" ry="65" class="skeleton-bone"/>
-          <path d="M 445 120 Q 440 145 455 155 L 545 155 Q 560 145 555 120" class="skeleton-bone"/>
-          <line x1="500" y1="155" x2="500" y2="175" class="skeleton-bone"/>
-          <path d="M 500 180 Q 520 175 580 170" class="skeleton-bone"/>
-          <path d="M 500 180 Q 480 175 420 170" class="skeleton-bone"/>
-          <circle cx="620" cy="200" r="12" class="skeleton-bone"/>
-          <circle cx="380" cy="200" r="12" class="skeleton-bone"/>
-          <ellipse cx="500" cy="280" rx="90" ry="110" class="skeleton-bone"/>
-          <path d="M 410 250 Q 380 280 410 310" class="skeleton-bone-thin"/>
-          <path d="M 590 250 Q 620 280 590 310" class="skeleton-bone-thin"/>
-          <path d="M 420 230 Q 390 260 420 290" class="skeleton-bone-thin"/>
-          <path d="M 580 230 Q 610 260 580 290" class="skeleton-bone-thin"/>
-          <line x1="500" y1="175" x2="500" y2="460" class="skeleton-bone"/>
-          <ellipse cx="500" cy="480" rx="85" ry="40" class="skeleton-bone"/>
-          <path d="M 415 480 Q 415 510 440 520" class="skeleton-bone"/>
-          <path d="M 585 480 Q 585 510 560 520" class="skeleton-bone"/>
-
-          <line x1="620" y1="200" x2="650" y2="320" class="skeleton-bone"/>
-          <line x1="650" y1="320" x2="680" y2="430" class="skeleton-bone"/>
-          <line x1="680" y1="430" x2="700" y2="520" class="skeleton-bone-thin"/>
-          <line x1="680" y1="430" x2="738" y2="466" class="skeleton-bone-thin"/>
-          <line x1="680" y1="430" x2="760" y2="490" class="skeleton-bone-thin"/>
-          <line x1="680" y1="430" x2="760" y2="520" class="skeleton-bone-thin"/>
-          <line x1="680" y1="430" x2="760" y2="545" class="skeleton-bone-thin"/>
-          <line x1="700" y1="520" x2="730" y2="570" class="skeleton-bone-thin"/>
-          <line x1="730" y1="570" x2="760" y2="610" class="skeleton-bone-fine"/>
-          <line x1="738" y1="466" x2="778" y2="472" class="skeleton-bone-thin"/>
-          <line x1="778" y1="472" x2="810" y2="478" class="skeleton-bone-fine"/>
-          <line x1="760" y1="490" x2="810" y2="500" class="skeleton-bone-thin"/>
-          <line x1="810" y1="500" x2="850" y2="510" class="skeleton-bone-fine"/>
-          <line x1="760" y1="520" x2="805" y2="540" class="skeleton-bone-thin"/>
-          <line x1="805" y1="540" x2="840" y2="555" class="skeleton-bone-fine"/>
-          <line x1="760" y1="545" x2="805" y2="575" class="skeleton-bone-thin"/>
-          <line x1="805" y1="575" x2="835" y2="600" class="skeleton-bone-fine"/>
-
-          <line x1="380" y1="200" x2="350" y2="320" class="skeleton-bone"/>
-          <line x1="350" y1="320" x2="320" y2="430" class="skeleton-bone"/>
-          <line x1="320" y1="430" x2="300" y2="520" class="skeleton-bone-thin"/>
-          <line x1="320" y1="430" x2="262" y2="466" class="skeleton-bone-thin"/>
-          <line x1="320" y1="430" x2="240" y2="490" class="skeleton-bone-thin"/>
-          <line x1="320" y1="430" x2="240" y2="520" class="skeleton-bone-thin"/>
-          <line x1="320" y1="430" x2="240" y2="545" class="skeleton-bone-thin"/>
-          <line x1="300" y1="520" x2="270" y2="570" class="skeleton-bone-thin"/>
-          <line x1="270" y1="570" x2="240" y2="610" class="skeleton-bone-fine"/>
-          <line x1="262" y1="466" x2="222" y2="472" class="skeleton-bone-thin"/>
-          <line x1="222" y1="472" x2="190" y2="478" class="skeleton-bone-fine"/>
-          <line x1="240" y1="490" x2="190" y2="500" class="skeleton-bone-thin"/>
-          <line x1="190" y1="500" x2="150" y2="510" class="skeleton-bone-fine"/>
-          <line x1="240" y1="520" x2="195" y2="540" class="skeleton-bone-thin"/>
-          <line x1="195" y1="540" x2="160" y2="555" class="skeleton-bone-fine"/>
-          <line x1="240" y1="545" x2="195" y2="575" class="skeleton-bone-thin"/>
-          <line x1="195" y1="575" x2="165" y2="600" class="skeleton-bone-fine"/>
-
-          <line x1="540" y1="520" x2="540" y2="640" class="skeleton-bone"/>
-          <line x1="540" y1="640" x2="545" y2="820" class="skeleton-bone"/>
-          <path d="M 545 820 L 535 850 Q 550 870 585 890" class="skeleton-bone-thin"/>
-          <path d="M 545 820 Q 570 820 610 820" class="skeleton-bone-thin"/>
-          <line x1="545" y1="820" x2="610" y2="820" class="skeleton-bone-thin"/>
-          <line x1="540" y1="835" x2="615" y2="840" class="skeleton-bone-thin"/>
-          <line x1="538" y1="850" x2="610" y2="860" class="skeleton-bone-thin"/>
-          <line x1="538" y1="865" x2="600" y2="875" class="skeleton-bone-thin"/>
-          <line x1="542" y1="878" x2="585" y2="890" class="skeleton-bone-thin"/>
-          <line x1="610" y1="820" x2="650" y2="820" class="skeleton-bone-fine"/>
-          <line x1="615" y1="840" x2="655" y2="845" class="skeleton-bone-fine"/>
-          <line x1="610" y1="860" x2="645" y2="865" class="skeleton-bone-fine"/>
-          <line x1="600" y1="875" x2="630" y2="885" class="skeleton-bone-fine"/>
-          <line x1="585" y1="890" x2="610" y2="905" class="skeleton-bone-fine"/>
-
-          <line x1="460" y1="520" x2="460" y2="640" class="skeleton-bone"/>
-          <line x1="460" y1="640" x2="455" y2="820" class="skeleton-bone"/>
-          <path d="M 455 820 L 465 850 Q 450 870 415 890" class="skeleton-bone-thin"/>
-          <path d="M 455 820 Q 430 820 390 820" class="skeleton-bone-thin"/>
-          <line x1="455" y1="820" x2="390" y2="820" class="skeleton-bone-thin"/>
-          <line x1="460" y1="835" x2="385" y2="840" class="skeleton-bone-thin"/>
-          <line x1="462" y1="850" x2="390" y2="860" class="skeleton-bone-thin"/>
-          <line x1="462" y1="865" x2="400" y2="875" class="skeleton-bone-thin"/>
-          <line x1="458" y1="878" x2="415" y2="890" class="skeleton-bone-thin"/>
-          <line x1="390" y1="820" x2="350" y2="820" class="skeleton-bone-fine"/>
-          <line x1="385" y1="840" x2="345" y2="845" class="skeleton-bone-fine"/>
-          <line x1="390" y1="860" x2="355" y2="865" class="skeleton-bone-fine"/>
-          <line x1="400" y1="875" x2="370" y2="885" class="skeleton-bone-fine"/>
-          <line x1="415" y1="890" x2="390" y2="905" class="skeleton-bone-fine"/>
-
-          <g class="joint-group" data-field="sternoclavicularright">
-            <circle class="joint-marker" cx="520" cy="180" r="10" />
-            <circle class="joint-hit" cx="520" cy="180" r="18" tabindex="0" role="button" aria-label="sternoclavicular right"></circle>
-          </g>
-          <g class="joint-group" data-field="sternoclavicularleft">
-            <circle class="joint-marker" cx="480" cy="180" r="10" />
-            <circle class="joint-hit" cx="480" cy="180" r="18" tabindex="0" role="button" aria-label="sternoclavicular left"></circle>
-          </g>
-          <g class="joint-group" data-field="acromioclavicularright">
-            <circle class="joint-marker" cx="580" cy="170" r="10" />
-            <circle class="joint-hit" cx="580" cy="170" r="18" tabindex="0" role="button" aria-label="acromioclavicular right"></circle>
-          </g>
-          <g class="joint-group" data-field="acromioclavicularleft">
-            <circle class="joint-marker" cx="420" cy="170" r="10" />
-            <circle class="joint-hit" cx="420" cy="170" r="18" tabindex="0" role="button" aria-label="acromioclavicular left"></circle>
-          </g>
-          <g class="joint-group" data-field="shoulderright">
-            <circle class="joint-marker" cx="620" cy="200" r="14" />
-            <circle class="joint-hit" cx="620" cy="200" r="24" tabindex="0" role="button" aria-label="shoulder right"></circle>
-          </g>
-          <g class="joint-group" data-field="shoulderleft">
-            <circle class="joint-marker" cx="380" cy="200" r="14" />
-            <circle class="joint-hit" cx="380" cy="200" r="24" tabindex="0" role="button" aria-label="shoulder left"></circle>
-          </g>
-          <g class="joint-group" data-field="elbowright">
-            <circle class="joint-marker" cx="650" cy="320" r="10" />
-            <circle class="joint-hit" cx="650" cy="320" r="18" tabindex="0" role="button" aria-label="elbow right"></circle>
-          </g>
-          <g class="joint-group" data-field="elbowleft">
-            <circle class="joint-marker" cx="350" cy="320" r="10" />
-            <circle class="joint-hit" cx="350" cy="320" r="18" tabindex="0" role="button" aria-label="elbow left"></circle>
-          </g>
-          <g class="joint-group" data-field="wristright">
-            <circle class="joint-marker" cx="680" cy="430" r="10" />
-            <circle class="joint-hit" cx="680" cy="430" r="18" tabindex="0" role="button" aria-label="wrist right"></circle>
-          </g>
-          <g class="joint-group" data-field="wristleft">
-            <circle class="joint-marker" cx="320" cy="430" r="10" />
-            <circle class="joint-hit" cx="320" cy="430" r="18" tabindex="0" role="button" aria-label="wrist left"></circle>
-          </g>
-          <g class="joint-group" data-field="kneeright">
-            <circle class="joint-marker" cx="540" cy="640" r="14" />
-            <circle class="joint-hit" cx="540" cy="640" r="24" tabindex="0" role="button" aria-label="knee right"></circle>
-          </g>
-          <g class="joint-group" data-field="kneeleft">
-            <circle class="joint-marker" cx="460" cy="640" r="14" />
-            <circle class="joint-hit" cx="460" cy="640" r="24" tabindex="0" role="button" aria-label="knee left"></circle>
-          </g>
-          <g class="joint-group" data-field="ankleright">
-            <circle class="joint-marker" cx="545" cy="820" r="10" />
-            <circle class="joint-hit" cx="545" cy="820" r="18" tabindex="0" role="button" aria-label="ankle right"></circle>
-          </g>
-          <g class="joint-group" data-field="ankleleft">
-            <circle class="joint-marker" cx="455" cy="820" r="10" />
-            <circle class="joint-hit" cx="455" cy="820" r="18" tabindex="0" role="button" aria-label="ankle left"></circle>
-          </g>
-
-          <g class="joint-group" data-field="mcp1right"><circle class="joint-marker" cx="700" cy="520" r="7" /><circle class="joint-hit" cx="700" cy="520" r="12" tabindex="0" role="button" aria-label="mcp1 right"></circle></g>
-          <g class="joint-group" data-field="mcp2right"><circle class="joint-marker" cx="738" cy="466" r="7" /><circle class="joint-hit" cx="738" cy="466" r="14" tabindex="0" role="button" aria-label="mcp2 right"></circle></g>
-          <g class="joint-group" data-field="mcp3right"><circle class="joint-marker" cx="760" cy="490" r="7" /><circle class="joint-hit" cx="760" cy="490" r="14" tabindex="0" role="button" aria-label="mcp3 right"></circle></g>
-          <g class="joint-group" data-field="mcp4right"><circle class="joint-marker" cx="760" cy="520" r="7" /><circle class="joint-hit" cx="760" cy="520" r="14" tabindex="0" role="button" aria-label="mcp4 right"></circle></g>
-          <g class="joint-group" data-field="mcp5right"><circle class="joint-marker" cx="760" cy="545" r="7" /><circle class="joint-hit" cx="760" cy="545" r="14" tabindex="0" role="button" aria-label="mcp5 right"></circle></g>
-          <g class="joint-group" data-field="pip1right"><circle class="joint-marker" cx="730" cy="570" r="7" /><circle class="joint-hit" cx="730" cy="570" r="12" tabindex="0" role="button" aria-label="pip1 right"></circle></g>
-          <g class="joint-group" data-field="pip2right"><circle class="joint-marker" cx="778" cy="472" r="7" /><circle class="joint-hit" cx="778" cy="472" r="14" tabindex="0" role="button" aria-label="pip2 right"></circle></g>
-          <g class="joint-group" data-field="pip3right"><circle class="joint-marker" cx="810" cy="500" r="7" /><circle class="joint-hit" cx="810" cy="500" r="14" tabindex="0" role="button" aria-label="pip3 right"></circle></g>
-          <g class="joint-group" data-field="pip4right"><circle class="joint-marker" cx="805" cy="540" r="7" /><circle class="joint-hit" cx="805" cy="540" r="14" tabindex="0" role="button" aria-label="pip4 right"></circle></g>
-          <g class="joint-group" data-field="pip5right"><circle class="joint-marker" cx="805" cy="575" r="7" /><circle class="joint-hit" cx="805" cy="575" r="14" tabindex="0" role="button" aria-label="pip5 right"></circle></g>
-
-          <g class="joint-group" data-field="mcp1left"><circle class="joint-marker" cx="300" cy="520" r="7" /><circle class="joint-hit" cx="300" cy="520" r="12" tabindex="0" role="button" aria-label="mcp1 left"></circle></g>
-          <g class="joint-group" data-field="mcp2left"><circle class="joint-marker" cx="262" cy="466" r="7" /><circle class="joint-hit" cx="262" cy="466" r="14" tabindex="0" role="button" aria-label="mcp2 left"></circle></g>
-          <g class="joint-group" data-field="mcp3left"><circle class="joint-marker" cx="240" cy="490" r="7" /><circle class="joint-hit" cx="240" cy="490" r="14" tabindex="0" role="button" aria-label="mcp3 left"></circle></g>
-          <g class="joint-group" data-field="mcp4left"><circle class="joint-marker" cx="240" cy="520" r="7" /><circle class="joint-hit" cx="240" cy="520" r="14" tabindex="0" role="button" aria-label="mcp4 left"></circle></g>
-          <g class="joint-group" data-field="mcp5left"><circle class="joint-marker" cx="240" cy="545" r="7" /><circle class="joint-hit" cx="240" cy="545" r="14" tabindex="0" role="button" aria-label="mcp5 left"></circle></g>
-          <g class="joint-group" data-field="pip1left"><circle class="joint-marker" cx="270" cy="570" r="7" /><circle class="joint-hit" cx="270" cy="570" r="12" tabindex="0" role="button" aria-label="pip1 left"></circle></g>
-          <g class="joint-group" data-field="pip2left"><circle class="joint-marker" cx="222" cy="472" r="7" /><circle class="joint-hit" cx="222" cy="472" r="14" tabindex="0" role="button" aria-label="pip2 left"></circle></g>
-          <g class="joint-group" data-field="pip3left"><circle class="joint-marker" cx="190" cy="500" r="7" /><circle class="joint-hit" cx="190" cy="500" r="14" tabindex="0" role="button" aria-label="pip3 left"></circle></g>
-          <g class="joint-group" data-field="pip4left"><circle class="joint-marker" cx="195" cy="540" r="7" /><circle class="joint-hit" cx="195" cy="540" r="14" tabindex="0" role="button" aria-label="pip4 left"></circle></g>
-          <g class="joint-group" data-field="pip5left"><circle class="joint-marker" cx="195" cy="575" r="7" /><circle class="joint-hit" cx="195" cy="575" r="14" tabindex="0" role="button" aria-label="pip5 left"></circle></g>
-
-          <g class="joint-group" data-field="mtp1right"><circle class="joint-marker" cx="610" cy="820" r="7" /><circle class="joint-hit" cx="610" cy="820" r="14" tabindex="0" role="button" aria-label="mtp1 right"></circle></g>
-          <g class="joint-group" data-field="mtp2right"><circle class="joint-marker" cx="615" cy="840" r="7" /><circle class="joint-hit" cx="615" cy="840" r="14" tabindex="0" role="button" aria-label="mtp2 right"></circle></g>
-          <g class="joint-group" data-field="mtp3right"><circle class="joint-marker" cx="610" cy="860" r="7" /><circle class="joint-hit" cx="610" cy="860" r="14" tabindex="0" role="button" aria-label="mtp3 right"></circle></g>
-          <g class="joint-group" data-field="mtp4right"><circle class="joint-marker" cx="600" cy="875" r="7" /><circle class="joint-hit" cx="600" cy="875" r="14" tabindex="0" role="button" aria-label="mtp4 right"></circle></g>
-          <g class="joint-group" data-field="mtp5right"><circle class="joint-marker" cx="585" cy="890" r="7" /><circle class="joint-hit" cx="585" cy="890" r="14" tabindex="0" role="button" aria-label="mtp5 right"></circle></g>
-
-          <g class="joint-group" data-field="mtp1left"><circle class="joint-marker" cx="390" cy="820" r="7" /><circle class="joint-hit" cx="390" cy="820" r="14" tabindex="0" role="button" aria-label="mtp1 left"></circle></g>
-          <g class="joint-group" data-field="mtp2left"><circle class="joint-marker" cx="385" cy="840" r="7" /><circle class="joint-hit" cx="385" cy="840" r="14" tabindex="0" role="button" aria-label="mtp2 left"></circle></g>
-          <g class="joint-group" data-field="mtp3left"><circle class="joint-marker" cx="390" cy="860" r="7" /><circle class="joint-hit" cx="390" cy="860" r="14" tabindex="0" role="button" aria-label="mtp3 left"></circle></g>
-          <g class="joint-group" data-field="mtp4left"><circle class="joint-marker" cx="400" cy="875" r="7" /><circle class="joint-hit" cx="400" cy="875" r="14" tabindex="0" role="button" aria-label="mtp4 left"></circle></g>
-          <g class="joint-group" data-field="mtp5left"><circle class="joint-marker" cx="415" cy="890" r="7" /><circle class="joint-hit" cx="415" cy="890" r="14" tabindex="0" role="button" aria-label="mtp5 left"></circle></g>
-        </svg>
+      <div style="display:none;">
+        <img src="{% static 'css/images/redcircle1.png' %}" />
+        <img src="{% static 'css/images/redcircle2.png' %}" />
+        <img src="{% static 'css/images/redcircle3.png' %}" />
+        <img src="{% static 'css/images/redcircle4.png' %}" />
+        <img src="{% static 'css/images/bluecircle1.png' %}" />
+        <img src="{% static 'css/images/bluecircle2.png' %}" />
+        <img src="{% static 'css/images/bluecircle3.png' %}" />
+        <img src="{% static 'css/images/bluecircle4.png' %}" />
+        <img src="{% static 'css/images/orangecircle1.png' %}" />
+        <img src="{% static 'css/images/orangecircle2.png' %}" />
+        <img src="{% static 'css/images/orangecircle3.png' %}" />
+        <img src="{% static 'css/images/orangecircle4.png' %}" />
       </div>
     </article>
 
@@ -514,112 +331,122 @@
 {% block extra_js %}
 <script>
 (function () {
-  const states = {
-    nopain: {
-      fill: '#c4cdd5',
-      stroke: '#4a5568',
-      filter: 'none',
-      next: 'red'
-    },
+  const staticPaths = {
     red: {
-      fill: '#ef4444',
-      stroke: '#ffffff',
-      filter: 'drop-shadow(0 0 4px rgba(239, 68, 68, 0.6))',
-      next: 'blue'
+      1: "{% static 'css/images/redcircle1.png' %}",
+      2: "{% static 'css/images/redcircle2.png' %}",
+      3: "{% static 'css/images/redcircle3.png' %}",
+      4: "{% static 'css/images/redcircle4.png' %}"
     },
     blue: {
-      fill: '#3b82f6',
-      stroke: '#ffffff',
-      filter: 'drop-shadow(0 0 4px rgba(59, 130, 246, 0.6))',
-      next: 'orange'
+      1: "{% static 'css/images/bluecircle1.png' %}",
+      2: "{% static 'css/images/bluecircle2.png' %}",
+      3: "{% static 'css/images/bluecircle3.png' %}",
+      4: "{% static 'css/images/bluecircle4.png' %}"
     },
     orange: {
-      fill: '#facc15',
-      stroke: '#ffffff',
-      filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.6))',
-      next: 'nopain'
-    }
+      1: "{% static 'css/images/orangecircle1.png' %}",
+      2: "{% static 'css/images/orangecircle2.png' %}",
+      3: "{% static 'css/images/orangecircle3.png' %}",
+      4: "{% static 'css/images/orangecircle4.png' %}"
+    },
+    nopain: "{% static 'css/images/transparent.png' %}"
   };
 
-  function normalize(v) {
-    return states[v] ? v : 'nopain';
+  function getFormInput(cbelId) {
+    return document.getElementById("id_" + cbelId) || document.getElementById(cbelId);
   }
 
-  function paintNode(node, state) {
-    const safe = normalize(state);
-    node.setAttribute('data-val', safe);
-    node.setAttribute('fill', states[safe].fill);
-    node.style.stroke = states[safe].stroke;
-    node.style.strokeWidth = '1.5';
-    node.style.filter = states[safe].filter;
-  }
+  window.swapimage = function (el, ev) {
+    if (ev) ev.stopPropagation();
+    var posr = el.style.backgroundImage.indexOf("red");
+    var posb = el.style.backgroundImage.indexOf("blue");
+    var poso = el.style.backgroundImage.indexOf("orange");
+    var post = el.style.backgroundImage.indexOf("transparent");
 
-  function cycleJoint(group, input) {
-    const marker = group.querySelector('.joint-marker');
-    if (!marker) return;
-    const current = normalize(marker.getAttribute('data-val'));
-    const next = states[current].next;
-    paintNode(marker, next);
-    if (input) input.value = next;
-  }
+    var cbelId = el.id.substr(el.id.indexOf("div") + 3);
+    var cbel = getFormInput(cbelId);
+    var prefix = el.id.substr(0, 1);
 
-  const groups = document.querySelectorAll('.joint-group');
+    var newValue = "nopain";
+    var newImg = staticPaths.nopain;
 
-  groups.forEach(function (group) {
-    const field = group.getAttribute('data-field');
-    const marker = group.querySelector('.joint-marker');
-    const hit = group.querySelector('.joint-hit');
-    const input = field ? document.getElementById('id_' + field) : null;
-    if (!marker || !field) return;
-
-    const initial = input ? normalize(input.value) : 'nopain';
-    paintNode(marker, initial);
-
-    if (hit) {
-      hit.addEventListener('click', function () {
-        cycleJoint(group, input);
-        updateCounters();
-      });
-
-      hit.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          cycleJoint(group, input);
-          updateCounters();
-        }
-      });
+    if (poso >= 0) {
+      newValue = "nopain";
+      newImg = staticPaths.nopain;
+    } else if (post >= 0 || el.style.backgroundImage === "" || el.style.backgroundImage.indexOf("none") >= 0) {
+      newValue = "blue";
+      newImg = staticPaths.blue[prefix] || staticPaths.blue[1];
+    } else if (posb >= 0) {
+      newValue = "red";
+      newImg = staticPaths.red[prefix] || staticPaths.red[1];
+    } else if (posr >= 0) {
+      newValue = "orange";
+      newImg = staticPaths.orange[prefix] || staticPaths.orange[1];
     }
-  });
+
+    el.style.backgroundImage = "url('" + newImg + "')";
+    if (cbel) {
+      cbel.value = newValue;
+      cbel.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    updateCounters();
+  };
 
   function updateCounters() {
     let noPainCount = 0;
     let tenderCount = 0;
     let swollenCount = 0;
-    
-    document.querySelectorAll('.joint-marker').forEach(marker => {
-      const state = normalize(marker.getAttribute('data-val'));
-      if (state === 'nopain') {
+
+    var jointDivs = document.querySelectorAll("div[id*='div']");
+    jointDivs.forEach(function(el) {
+      var cbelId = el.id.substr(el.id.indexOf("div") + 3);
+      var cbel = getFormInput(cbelId);
+      var val = cbel ? cbel.value : "nopain";
+
+      if (val === "red") {
+        swollenCount++;
+      } else if (val === "blue") {
+        tenderCount++;
+      } else if (val === "orange") {
+        swollenCount++;
+        tenderCount++;
+      } else {
         noPainCount++;
-      } else if (state === 'red') {
-        swollenCount++;
-      } else if (state === 'blue') {
-        tenderCount++;
-      } else if (state === 'orange') {
-        swollenCount++;
-        tenderCount++;
       }
     });
-    
-    const nopainEl = document.getElementById('counter-nopain');
-    const tenderEl = document.getElementById('counter-tender');
-    const swollenEl = document.getElementById('counter-swollen');
-    
+
+    var nopainEl = document.getElementById('counter-nopain');
+    var tenderEl = document.getElementById('counter-tender');
+    var swollenEl = document.getElementById('counter-swollen');
+
     if (nopainEl) nopainEl.textContent = noPainCount;
     if (tenderEl) tenderEl.textContent = tenderCount;
     if (swollenEl) swollenEl.textContent = swollenCount;
   }
 
-  updateCounters();
+  document.addEventListener("DOMContentLoaded", function() {
+    var jointDivs = document.querySelectorAll("div[id*='div']");
+    jointDivs.forEach(function(el) {
+      var cbelId = el.id.substr(el.id.indexOf("div") + 3);
+      var cbel = getFormInput(cbelId);
+      var prefix = el.id.substr(0, 1);
+      var val = cbel ? cbel.value : "nopain";
+
+      var newImg = staticPaths.nopain;
+      if (val === "red") {
+        newImg = staticPaths.red[prefix] || staticPaths.red[1];
+      } else if (val === "blue") {
+        newImg = staticPaths.blue[prefix] || staticPaths.blue[1];
+      } else if (val === "orange") {
+        newImg = staticPaths.orange[prefix] || staticPaths.orange[1];
+      }
+      el.style.backgroundImage = "url('" + newImg + "')";
+    });
+
+    updateCounters();
+  });
 })();
 </script>
 {% endblock %}

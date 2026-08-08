@@ -1,5 +1,7 @@
 from datetime import date
+import json
 from io import BytesIO
+
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -105,6 +107,12 @@ def compounder_dashboard(request):
 		messages.error(request, "Access restricted. Please log in with a Compounder or Doctor account.")
 		return redirect(f"/login/?next={request.path}")
 
+	patient_form_bound = None
+	appointment_form_bound = None
+	vitals_form_bound = None
+	medical_form_bound = None
+	report_form_bound = None
+
 	if request.method == "POST":
 
 		action = request.POST.get("action")
@@ -114,10 +122,16 @@ def compounder_dashboard(request):
 			if patient_form.is_valid():
 				patient = patient_form.save()
 				ext_num = request.POST.get("external_file_number", "").strip() or None
-				FileRecord.objects.get_or_create(patient=patient, defaults={"external_file_number": ext_num})
-				messages.success(request, "Patient profile and file record created.")
+				file_rec, created = FileRecord.objects.get_or_create(patient=patient, defaults={"external_file_number": ext_num})
+				if not created and ext_num and not file_rec.external_file_number:
+					file_rec.external_file_number = ext_num
+					file_rec.save()
+				messages.success(request, f"Patient '{patient.get_full_name()}' registered successfully. File Record: {file_rec.internal_file_number}")
+				return redirect("compounder-dashboard")
 			else:
-				messages.error(request, "Could not create patient profile.")
+				patient_form_bound = patient_form
+				err_list = [f"{k.replace('_', ' ').title()}: {v[0]}" for k, v in patient_form.errors.items()]
+				messages.error(request, f"Could not create patient profile. Errors: {'; '.join(err_list)}")
 
 		elif action == "create_appointment":
 			appointment_form = AppointmentForm(request.POST)
@@ -125,8 +139,11 @@ def compounder_dashboard(request):
 				appointment = appointment_form.save()
 				messages.success(request, f"Appointment created with token {appointment.token_number}.")
 				_broadcast_queue_update(appointment.doctor_id)
+				return redirect("compounder-dashboard")
 			else:
-				messages.error(request, "Appointment creation failed.")
+				appointment_form_bound = appointment_form
+				err_list = [f"{k.replace('_', ' ').title()}: {v[0]}" for k, v in appointment_form.errors.items()]
+				messages.error(request, f"Appointment creation failed: {'; '.join(err_list)}")
 
 		elif action == "capture_vitals":
 			appointment = get_object_or_404(Appointment, id=request.POST.get("appointment_id"))
@@ -138,7 +155,9 @@ def compounder_dashboard(request):
 				vitals.patient = appointment.patient
 				vitals.save()
 				messages.success(request, "Vitals saved.")
+				return redirect("compounder-dashboard")
 			else:
+				vitals_form_bound = vitals_form
 				messages.error(request, "Invalid vitals data.")
 
 		elif action == "update_appointment":
@@ -148,6 +167,7 @@ def compounder_dashboard(request):
 				updated = update_form.save()
 				messages.success(request, "Appointment updated.")
 				_broadcast_queue_update(updated.doctor_id)
+				return redirect("compounder-dashboard")
 			else:
 				messages.error(request, "Could not update appointment.")
 
@@ -165,7 +185,9 @@ def compounder_dashboard(request):
 					comorbidity, _ = Comorbidity.objects.get_or_create(name=custom.strip())
 					medical_info.comorbidities.add(comorbidity)
 				messages.success(request, "Patient medical info saved.")
+				return redirect("compounder-dashboard")
 			else:
+				medical_form_bound = medical_form
 				messages.error(request, "Medical info is invalid.")
 
 		elif action == "upload_lab_report":
@@ -173,15 +195,16 @@ def compounder_dashboard(request):
 			if report_form.is_valid():
 				report_form.save()
 				messages.success(request, "Lab report uploaded.")
+				return redirect("compounder-dashboard")
 			else:
+				report_form_bound = report_form
 				messages.error(request, "Lab report upload failed.")
 
 		elif action == "sync_lab_report":
 			report = get_object_or_404(LabResult, id=request.POST.get("report_id"))
 			process_lab_report_task.delay(report.id)
 			messages.success(request, "Lab report sync triggered on primary worker.")
-
-		return redirect("compounder-dashboard")
+			return redirect("compounder-dashboard")
 
 	search_q = request.GET.get("search_q", "").strip()
 	is_recent_list = False
@@ -203,11 +226,11 @@ def compounder_dashboard(request):
 	)
 
 	context = {
-		"patient_form": PatientProfileForm(),
-		"appointment_form": AppointmentForm(initial={"status": "T"}),
-		"vitals_form": VitalsForm(),
-		"medical_form": PatientMedicalInfoForm(),
-		"report_form": LabResultForm(),
+		"patient_form": patient_form_bound or PatientProfileForm(),
+		"appointment_form": appointment_form_bound or AppointmentForm(initial={"status": "T"}),
+		"vitals_form": vitals_form_bound or VitalsForm(),
+		"medical_form": medical_form_bound or PatientMedicalInfoForm(),
+		"report_form": report_form_bound or LabResultForm(),
 		"today_appointments": today_appointments,
 		"recent_patients": PatientProfile.objects.select_related("filerecord").order_by("-id")[:10],
 		"pending_reports": LabResult.objects.filter(is_verified=False).select_related("patient__filerecord", "appointment")[:10],
@@ -769,7 +792,7 @@ def rumat_diagnosis_page(request, appointment_id):
 		form = RumatDiagnosisForm(initial=initial)
 
 	latest_lab = LabResult.objects.filter(patient=patient).exclude(test_data={}).first()
-	latest_lab_data = latest_lab.test_data if latest_lab else {}
+	latest_lab_data_json = json.dumps(latest_lab.test_data) if (latest_lab and latest_lab.test_data) else "{}"
 
 	context = {
 		"appointment": appointment,
@@ -777,7 +800,7 @@ def rumat_diagnosis_page(request, appointment_id):
 		"form": form,
 		"doctor_id": request.GET.get("doctor", ""),
 		"latest_diagnosis": latest_diagnosis,
-		"latest_lab_data": latest_lab_data,
+		"latest_lab_data_json": latest_lab_data_json,
 	}
 	return render(request, "treatment/rumat_diagnosis_page.html", context)
 

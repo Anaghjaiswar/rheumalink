@@ -345,7 +345,7 @@
       <!-- 1. Musculoskeletal Manifestations -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Musculoskeletal Manifestations</h2>
+          <h2>Musculoskeletal Manifestations</h2>
         </div>
         <div class="accordion-content">
           <div class="duration-fields">
@@ -420,7 +420,7 @@
       <!-- 2. Back Ache -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Back Ache</h2>
+          <h2>Back Ache</h2>
         </div>
         <div class="accordion-content">
           <div class="duration-fields">
@@ -454,7 +454,7 @@
       <!-- 3. Weakness -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Weakness</h2>
+          <h2>Weakness</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.wk }} <span>Weakness</span></label>
@@ -468,7 +468,7 @@
       <!-- 4. Dermatological -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Dermatological</h2>
+          <h2>Dermatological</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.der }} <span>Dermatological Condition</span></label>
@@ -493,7 +493,7 @@
       <!-- 5. Ophthalmological -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Ophthalmological</h2>
+          <h2>Ophthalmological</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.opth }} <span>Ophthalmological Condition</span></label>
@@ -510,7 +510,7 @@
       <!-- 6. Constitutional -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Constitutional</h2>
+          <h2>Constitutional</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.cons }} <span>Constitutional Symptoms</span></label>
@@ -525,7 +525,7 @@
       <!-- 7. Allergy -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Allergy</h2>
+          <h2>Allergy</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.allergy }} <span>Allergy Exists</span></label>
@@ -545,7 +545,7 @@
       <!-- 8. Systems -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Systems</h2>
+          <h2>Systems</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.sys }} <span>Systems Manifestations</span></label>
@@ -573,7 +573,7 @@
       <!-- 9. Past History -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Past History</h2>
+          <h2>Past History</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.ph }} <span>Past History Record</span></label>
@@ -592,7 +592,7 @@
       <!-- 10. Obstetric History -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Obstetric History</h2>
+          <h2>Obstetric History</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.oh }} <span>Obstetric History Record</span></label>
@@ -606,7 +606,7 @@
       <!-- 11. Personal History -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Personal History</h2>
+          <h2>Personal History</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 16px;">{{ form.perh }} <span>Personal History Record</span></label>
@@ -625,7 +625,7 @@
       <!-- 12. Spine Examination -->
       <div class="accordion-row">
         <div class="accordion-header">
-          <h2># Spine Examination</h2>
+          <h2>Spine Examination</h2>
         </div>
         <div class="accordion-content">
           <label class="checkbox-wrapper" style="margin-bottom: 12px;">{{ form.spe }} <span>Spine Exam Record</span></label>
@@ -639,12 +639,21 @@
 
     </div>
 
-    <!-- AI summary generator block -->
-    <div class="action-section">
-      <div class="ai-controls">
-        <h3 style="margin:0; font-size:1.15rem; color: #1e293b;">AI Clinical Summary Note</h3>
-        <button type="button" class="ai-btn" id="generate-summary-btn">
-          <div class="spinner" id="ai-spinner"></div>
+    <!-- Clinical summary block -->
+    <div class="action-section" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-top: 30px; box-shadow: var(--shadow);">
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+            <span>📋</span> Clinical Summary Note
+          </h3>
+          <p style="margin: 4px 0 0; font-size: 0.84rem; color: #64748b;">
+            Select symptoms above, then click Generate AI Summary to automatically construct clinical notes.
+          </p>
+        </div>
+
+        <button type="button" class="ai-btn" id="generate-summary-btn" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 10px 20px; font-size: 0.9rem; font-weight: 600; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease;">
+          <div class="spinner" id="ai-spinner" style="width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #ffffff; border-radius: 50%; animation: spin 0.8s linear infinite; display: none;"></div>
           <span id="ai-btn-text">⚡ Generate AI Summary</span>
         </button>
       </div>
@@ -652,7 +661,7 @@
       <!-- Main Summary Textarea for description_t -->
       {{ form.description_t }}
 
-      <div class="meta-grid">
+      <div class="meta-grid" style="margin-top: 16px;">
         <div class="input-wrapper">
           <label for="id_disease_name">Disease Name</label>
           <input type="text" name="disease_name" id="id_disease_name" value="Rheumatoid Arthritis" placeholder="e.g. Rheumatoid Arthritis, SLE">
@@ -668,7 +677,7 @@
         </div>
       </div>
 
-      <div class="button-group">
+      <div class="button-group" style="margin-top: 20px;">
         <button type="button" class="cancel-btn" id="cancel-btn">Cancel</button>
         <button type="submit" class="submit-btn">Save Rumat Diagnosis</button>
       </div>
@@ -713,7 +722,7 @@
     const descTextarea = document.querySelector('[name="description_t"]');
     if (descTextarea) {
       descTextarea.classList.add('summary-textarea');
-      descTextarea.placeholder = 'Select the symptoms above, then click "Generate AI Summary" to create a clinical summary notes. You can edit the generated text before saving.';
+      descTextarea.placeholder = 'Select symptoms above, then click "Generate AI Summary" to create clinical summary notes. You can edit the generated text before saving.';
     }
 
     // 2. AI Summary Generation Logic
@@ -721,168 +730,180 @@
     const aiSpinner = document.getElementById('ai-spinner');
     const aiBtnText = document.getElementById('ai-btn-text');
 
-    // Parse latest lab values passed from context
-    const latestLabData = JSON.parse('{{ latest_lab_data|escapejs }}' || '{}');
+    // Parse latest lab values passed from context if available
+    let latestLabData = {};
+    try {
+      const rawLab = '{{ latest_lab_data_json|escapejs }}';
+      if (rawLab && rawLab !== '{}') {
+        latestLabData = JSON.parse(rawLab);
+      }
+    } catch(err) {
+      console.warn('Could not parse lab data:', err);
+      latestLabData = {};
+    }
 
-    aiBtn.addEventListener('click', function() {
-      const findings = {};
-      const accordionRows = document.querySelectorAll('.accordion-row');
-      
-      accordionRows.forEach(row => {
-        const headerText = row.querySelector('.accordion-header h2').textContent.replace('#', '').trim();
-        const checkedList = [];
+    if (aiBtn) {
+      aiBtn.addEventListener('click', function(e) {
+        if (e) e.preventDefault();
+        console.log("AI Summary button clicked.");
+        const findings = {};
+        const accordionRows = document.querySelectorAll('.accordion-row');
         
-        // Find durations and text inputs if any
-        if (headerText === "Musculoskeletal Manifestations") {
-          const yrs = row.querySelector('input[name="duration_years_msm"]').value;
-          const mos = row.querySelector('input[name="duration_months_msm"]').value;
-          const days = row.querySelector('input[name="duration_days_msm"]').value;
-          let durStr = "";
-          if (yrs) durStr += `${yrs} yr `;
-          if (mos) durStr += `${mos} mo `;
-          if (days) durStr += `${days} days`;
-          durStr = durStr.trim();
-          if (durStr) checkedList.push(`Duration: ${durStr}`);
-        } else if (headerText === "Back Ache") {
-          const yrs = row.querySelector('input[name="duration_years_ba"]').value;
-          const mos = row.querySelector('input[name="duration_months_ba"]').value;
-          const days = row.querySelector('input[name="duration_days_ba"]').value;
-          let durStr = "";
-          if (yrs) durStr += `${yrs} yr `;
-          if (mos) durStr += `${mos} mo `;
-          if (days) durStr += `${days} days`;
-          durStr = durStr.trim();
-          if (durStr) checkedList.push(`Duration: ${durStr}`);
-        } else if (headerText === "Weakness") {
-          const descInput = row.querySelector('input[name="description_wk"]');
-          const desc = descInput ? descInput.value.trim() : "";
-          if (desc) checkedList.push(`Description: ${desc}`);
-        } else if (headerText === "Allergy") {
-          const dAllerInput = row.querySelector('input[name="description_drugs_allergy"]');
-          const oAllerInput = row.querySelector('input[name="description_other_allergy"]');
-          const dAller = dAllerInput ? dAllerInput.value.trim() : "";
-          const oAller = oAllerInput ? oAllerInput.value.trim() : "";
-          if (dAller) checkedList.push(`Drug Allergy: ${dAller}`);
-          if (oAller) checkedList.push(`Other Allergy: ${oAller}`);
-        } else if (headerText === "Systems") {
-          const crInput = row.querySelector('input[name="description_cardiorespiratory_sys"]');
-          const giInput = row.querySelector('input[name="description_gastrointestinal_sys"]');
-          const cnsInput = row.querySelector('input[name="description_cns_sys"]');
-          const rsInput = row.querySelector('input[name="description_rs_sys"]');
-          const cr = crInput ? crInput.value.trim() : "";
-          const gi = giInput ? giInput.value.trim() : "";
-          const cns = cnsInput ? cnsInput.value.trim() : "";
-          const rs = rsInput ? rsInput.value.trim() : "";
-          if (cr) checkedList.push(`Cardiorespiratory: ${cr}`);
-          if (gi) checkedList.push(`Gastrointestinal: ${gi}`);
-          if (cns) checkedList.push(`CNS: ${cns}`);
-          if (rs) checkedList.push(`Respiratory: ${rs}`);
-        } else if (headerText === "Obstetric History") {
-          const descInput = row.querySelector('input[name="description_oh"]');
-          const desc = descInput ? descInput.value.trim() : "";
-          if (desc) checkedList.push(`Description: ${desc}`);
-        } else if (headerText === "Spine Examination") {
-          const descInput = row.querySelector('input[name="description_spe"]');
-          const desc = descInput ? descInput.value.trim() : "";
-          if (desc) checkedList.push(`Description: ${desc}`);
-        }
-        
-        // Find checked checkboxes in this row
-        const checkboxes = row.querySelectorAll('input[type="checkbox"]:checked');
-        checkboxes.forEach(chk => {
-          const labelText = chk.closest('label').textContent.trim();
-          checkedList.push(labelText);
+        accordionRows.forEach(row => {
+          const headerText = row.querySelector('.accordion-header h2').textContent.trim();
+          const checkedList = [];
+          
+          if (headerText === "Musculoskeletal Manifestations") {
+            const yrs = row.querySelector('input[name="duration_years_msm"]')?.value;
+            const mos = row.querySelector('input[name="duration_months_msm"]')?.value;
+            const days = row.querySelector('input[name="duration_days_msm"]')?.value;
+            let durStr = "";
+            if (yrs) durStr += `${yrs} yr `;
+            if (mos) durStr += `${mos} mo `;
+            if (days) durStr += `${days} days`;
+            durStr = durStr.trim();
+            if (durStr) checkedList.push(`Duration: ${durStr}`);
+          } else if (headerText === "Back Ache") {
+            const yrs = row.querySelector('input[name="duration_years_ba"]')?.value;
+            const mos = row.querySelector('input[name="duration_months_ba"]')?.value;
+            const days = row.querySelector('input[name="duration_days_ba"]')?.value;
+            let durStr = "";
+            if (yrs) durStr += `${yrs} yr `;
+            if (mos) durStr += `${mos} mo `;
+            if (days) durStr += `${days} days`;
+            durStr = durStr.trim();
+            if (durStr) checkedList.push(`Duration: ${durStr}`);
+          } else if (headerText === "Weakness") {
+            const descInput = row.querySelector('input[name="description_wk"]');
+            const desc = descInput ? descInput.value.trim() : "";
+            if (desc) checkedList.push(`Description: ${desc}`);
+          } else if (headerText === "Allergy") {
+            const dAllerInput = row.querySelector('input[name="description_drugs_allergy"]');
+            const oAllerInput = row.querySelector('input[name="description_other_allergy"]');
+            const dAller = dAllerInput ? dAllerInput.value.trim() : "";
+            const oAller = oAllerInput ? oAllerInput.value.trim() : "";
+            if (dAller) checkedList.push(`Drug Allergy: ${dAller}`);
+            if (oAller) checkedList.push(`Other Allergy: ${oAller}`);
+          } else if (headerText === "Systems") {
+            const crInput = row.querySelector('input[name="description_cardiorespiratory_sys"]');
+            const giInput = row.querySelector('input[name="description_gastrointestinal_sys"]');
+            const cnsInput = row.querySelector('input[name="description_cns_sys"]');
+            const rsInput = row.querySelector('input[name="description_rs_sys"]');
+            const cr = crInput ? crInput.value.trim() : "";
+            const gi = giInput ? giInput.value.trim() : "";
+            const cns = cnsInput ? cnsInput.value.trim() : "";
+            const rs = rsInput ? rsInput.value.trim() : "";
+            if (cr) checkedList.push(`Cardiorespiratory: ${cr}`);
+            if (gi) checkedList.push(`Gastrointestinal: ${gi}`);
+            if (cns) checkedList.push(`CNS: ${cns}`);
+            if (rs) checkedList.push(`Respiratory: ${rs}`);
+          } else if (headerText === "Obstetric History") {
+            const descInput = row.querySelector('input[name="description_oh"]');
+            const desc = descInput ? descInput.value.trim() : "";
+            if (desc) checkedList.push(`Description: ${desc}`);
+          } else if (headerText === "Spine Examination") {
+            const descInput = row.querySelector('input[name="description_spe"]');
+            const desc = descInput ? descInput.value.trim() : "";
+            if (desc) checkedList.push(`Description: ${desc}`);
+          }
+          
+          const checkboxes = row.querySelectorAll('input[type="checkbox"]:checked');
+          checkboxes.forEach(chk => {
+            const labelText = chk.closest('label').textContent.trim();
+            checkedList.push(labelText);
+          });
+          
+          if (checkedList.length > 0) {
+            findings[headerText] = checkedList;
+          }
         });
-        
-        if (checkedList.length > 0) {
-          findings[headerText] = checkedList;
-        }
-      });
 
-      // Append lab markers if any
-      if (latestLabData && Object.keys(latestLabData).length > 0) {
-        const labList = [];
-        for (const [k, v] of Object.entries(latestLabData)) {
-          if (v && v.value) {
-            labList.push(`${k}: ${v.value} ${v.unit || ''}`);
+        if (latestLabData && Object.keys(latestLabData).length > 0) {
+          const labList = [];
+          for (const [k, v] of Object.entries(latestLabData)) {
+            if (v && v.value) {
+              labList.push(`${k}: ${v.value} ${v.unit || ''}`);
+            }
+          }
+          if (labList.length > 0) {
+            findings["Lab Markers"] = labList;
           }
         }
-        if (labList.length > 0) {
-          findings["Lab Markers"] = labList;
-        }
-      }
 
-      // Show spinner and disable button
-      aiBtn.disabled = true;
-      aiSpinner.style.display = 'block';
-      aiBtnText.textContent = 'Analyzing Symptoms...';
+        aiBtn.disabled = true;
+        aiSpinner.style.display = 'block';
+        aiBtnText.textContent = 'Analyzing Symptoms...';
 
-      // Send to API
-      fetch('/api/generate-rumat-summary/{{ appointment.id }}/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-          findings: findings
+        fetch('/api/generate-rumat-summary/{{ appointment.id }}/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+          },
+          body: JSON.stringify({
+            findings: findings
+          })
         })
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        // Clear textarea to prepare for stream
-        descTextarea.value = "";
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          descTextarea.value = "";
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
 
-        function readStream() {
-          return reader.read().then(({ done, value }) => {
-            if (done) {
-              // Once streaming completes, run clinical disease auto-fill checks
-              const summaryText = descTextarea.value;
-              const summaryLower = summaryText.toLowerCase();
-              const diseaseInput = document.getElementById('id_disease_name');
-              if (summaryLower.includes('lupus') || summaryLower.includes('sle')) {
-                diseaseInput.value = 'Lupus (SLE)';
-              } else if (summaryLower.includes('gout')) {
-                diseaseInput.value = 'Gout';
-              } else if (summaryLower.includes('ankylosing')) {
-                diseaseInput.value = 'Ankylosing Spondylitis';
+          function readStream() {
+            return reader.read().then(({ done, value }) => {
+              if (done) {
+                const summaryText = descTextarea.value;
+                const summaryLower = summaryText.toLowerCase();
+                const diseaseInput = document.getElementById('id_disease_name');
+                if (diseaseInput) {
+                  if (summaryLower.includes('lupus') || summaryLower.includes('sle')) {
+                    diseaseInput.value = 'Lupus (SLE)';
+                  } else if (summaryLower.includes('gout')) {
+                    diseaseInput.value = 'Gout';
+                  } else if (summaryLower.includes('ankylosing')) {
+                    diseaseInput.value = 'Ankylosing Spondylitis';
+                  }
+                }
+                return;
               }
-              return;
-            }
 
-            const chunk = decoder.decode(value, { stream: true });
-            descTextarea.value += chunk;
-            descTextarea.scrollTop = descTextarea.scrollHeight; // Scroll to bottom
+              const chunk = decoder.decode(value, { stream: true });
+              descTextarea.value += chunk;
+              descTextarea.scrollTop = descTextarea.scrollHeight;
 
-            return readStream();
-          });
-        }
-        return readStream();
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        alert('Server connection error or invalid request. Please try again.');
-      })
-      .finally(() => {
-        // Hide spinner and enable button
-        aiBtn.disabled = false;
-        aiSpinner.style.display = 'none';
-        aiBtnText.textContent = '⚡ Generate AI Summary';
+              return readStream();
+            });
+          }
+          return readStream();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Server connection error or invalid request. Please try again.');
+        })
+        .finally(() => {
+          aiBtn.disabled = false;
+          aiSpinner.style.display = 'none';
+          aiBtnText.textContent = '⚡ Generate AI Summary';
+        });
       });
-    });
+    }
 
     // 3. Cancel Button Logic
-    document.getElementById('cancel-btn').addEventListener('click', function() {
-      const doctorId = '{{ doctor_id }}';
-      const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
-      window.location.href = '/doctor-dashboard/' + doctorParam;
-    });
+    const cancelBtn = document.getElementById('cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function() {
+        const doctorId = '{{ doctor_id }}';
+        const doctorParam = doctorId ? ('?doctor=' + doctorId) : '';
+        window.location.href = '/doctor-dashboard/' + doctorParam;
+      });
+    }
 
   });
 </script>
 {% endblock %}
+
+

@@ -1,6 +1,7 @@
 from django import forms
 
 from doctor.models import Doctor
+from user.models import User
 from patient.models import Comorbidity, PatientDiagnosis, PatientMedicalInfo, PatientProfile
 from .models import (
     Appointment,
@@ -13,7 +14,15 @@ from .models import (
 )
 
 
+
+import uuid
+
 class PatientProfileForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["email"].required = False
+        self.fields["first_name"].required = True
+
     class Meta:
         model = PatientProfile
         fields = [
@@ -28,6 +37,27 @@ class PatientProfileForm(forms.ModelForm):
         widgets = {
             "date_of_birth": forms.DateInput(attrs={"type": "date"}),
         }
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email and email.strip():
+            email = email.strip().lower()
+            qs = User.objects.filter(email=email)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("A user with this email address already exists.")
+            return email
+        else:
+            contact_no = self.cleaned_data.get("contact_no", "").strip()
+            clean_contact = "".join(filter(str.isalnum, contact_no))
+            if clean_contact:
+                generated = f"patient_{clean_contact}@rheumalink.local"
+                if not User.objects.filter(email=generated).exists():
+                    return generated
+            unique_suffix = str(uuid.uuid4())[:8]
+            return f"patient_{unique_suffix}@rheumalink.local"
+
 
 
 class AppointmentForm(forms.ModelForm):
