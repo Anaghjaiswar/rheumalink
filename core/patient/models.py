@@ -42,6 +42,10 @@ class PatientProfile(User):
         age = today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
         return age
 
+    @property
+    def latest_medical_info(self):
+        return PatientMedicalInfo.objects.filter(patient=self).order_by('-created_at', '-id').first()
+
     
 
 class FileRecord(models.Model):
@@ -95,13 +99,17 @@ class PatientMedicalInfo(models.Model):
         ('O-', 'O-'),
     ]
 
-    patient = models.OneToOneField(PatientProfile, on_delete=models.CASCADE, help_text="Patient associated with the medical information", verbose_name="Patient")
+    patient = models.ForeignKey(PatientProfile, on_delete=models.CASCADE, related_name="medical_info_history", help_text="Patient associated with the medical information", verbose_name="Patient")
     blood_group = models.CharField(max_length=3, choices=BLOOD_GROUP_CHOICES, help_text="Blood group of the patient", verbose_name="Blood Group")   
     family_history = models.TextField(help_text="Family medical history of the patient", verbose_name="Family History", blank=True, null=True)
     known_allergies = models.TextField(help_text="Known allergies of the patient", verbose_name="Known Allergies", blank=True, null=True)
     smokes = models.BooleanField(help_text="Whether the patient smokes or not", verbose_name="Smokes")
     alcohololic = models.BooleanField(help_text="Whether the patient is an alcoholic or not", verbose_name="Alcoholic")
     comorbidities = models.ManyToManyField(Comorbidity, help_text="Comorbidities of the patient", verbose_name="Comorbidities", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, help_text="Timestamp when this medical info record was created")
+
+    class Meta:
+        ordering = ['-created_at', '-id']
 
     def __str__(self):
         return f"Medical Information for {self.patient.get_full_name()} | Blood Group: {self.blood_group}"

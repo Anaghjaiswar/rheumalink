@@ -140,21 +140,90 @@
 </section>
 
 <section class="grid two">
-  <article class="panel" style="grid-column: span 2;">
-    <h2>3. Optional Patient Medical Info</h2>
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="save_medical_info">
-      <label for="patient_id">Patient</label>
-      <select name="patient_id" id="patient_id" required>
-        <option value="">Select patient</option>
+  <article class="panel" style="grid-column: span 2;" id="medical-info-panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 style="margin: 0; font-family: var(--font-title);">3. Patient Medical Info & History</h2>
+    </div>
+
+    <!-- Patient Selection Dropdown -->
+    <div style="margin-bottom: 16px;">
+      <label for="patient_id" style="font-weight: 600; display: block; margin-bottom: 4px;">Select Patient:</label>
+      <select name="patient_id" id="patient_id" style="width: 100%; max-width: 550px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1;">
+        <option value="">-- Select Patient --</option>
         {% for patient in recent_patients %}
-          <option value="{{ patient.id }}">{{ patient.get_full_name }} | File: {{ patient.filerecord.internal_file_number }}{% if patient.filerecord.external_file_number %} (Ext: {{ patient.filerecord.external_file_number }}){% endif %} | {{ patient.contact_no }}</option>
+          <option value="{{ patient.id }}" {% if selected_patient_obj and selected_patient_obj.id == patient.id %}selected{% endif %}>
+            {{ patient.get_full_name }} | File: {{ patient.filerecord.internal_file_number }}{% if patient.filerecord.external_file_number %} (Ext: {{ patient.filerecord.external_file_number }}){% endif %} | {{ patient.contact_no }}
+          </option>
         {% endfor %}
       </select>
-      {{ medical_form.as_p }}
-      <button type="submit">Save Medical Record</button>
-    </form>
+    </div>
+
+    <!-- Empty Prompt View (When no patient selected) -->
+    <div id="medical-empty-prompt" style="padding: 24px; text-align: center; color: #64748b; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">
+      <p style="margin: 0; font-size: 0.95rem;">👈 Select a patient above to view their medical summary or record medical info.</p>
+    </div>
+
+    <!-- Medical Info Summary Container (Shown when medical info exists for patient) -->
+    <div id="medical-summary-container" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-top: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #dcfce7; padding-bottom: 10px; margin-bottom: 12px;">
+        <div>
+          <h3 style="margin: 0 0 4px 0; color: #166534; font-size: 1.1rem; display: flex; align-items: center; gap: 8px;">
+            <span>📋 Latest Medical Info Summary</span>
+          </h3>
+          <span style="font-size: 0.82rem; color: #15803d;" id="summary-timestamp">Recorded on: -</span>
+        </div>
+        <button type="button" class="btn" style="background-color: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 6px;" onclick="showMedicalFormForUpdate()">
+          ✏️ Update Medical Info (Creates New Version)
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; font-size: 0.92rem;">
+        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <strong style="color: #475569; display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Blood Group</strong>
+          <span id="summary-blood-group" style="font-weight: 700; color: #0f172a; font-size: 1.1rem;">-</span>
+        </div>
+        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
+          <strong style="color: #475569; display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Smokes / Alcohol</strong>
+          <span id="summary-lifestyle" style="color: #0f172a; font-weight: 600;">-</span>
+        </div>
+        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; grid-column: span 2;">
+          <strong style="color: #475569; display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Known Allergies</strong>
+          <span id="summary-allergies" style="color: #0f172a;">-</span>
+        </div>
+        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; grid-column: span 2;">
+          <strong style="color: #475569; display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Family History</strong>
+          <span id="summary-family-history" style="color: #0f172a;">-</span>
+        </div>
+        <div style="background: white; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; grid-column: span 2;">
+          <strong style="color: #475569; display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Comorbidities</strong>
+          <div id="summary-comorbidities" style="display: flex; flex-wrap: wrap; gap: 6px;">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medical Info Form Container (Shown when no medical info exists OR when updating) -->
+    <div id="medical-form-container" style="display: none; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-top: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+        <h4 id="medical-form-title" style="margin: 0; color: #1e293b; font-size: 1rem;">Record Patient Medical Info</h4>
+        <button type="button" id="btn-cancel-update" style="display: none; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 6px 12px; border-radius: 4px; font-size: 0.82rem; cursor: pointer; font-weight: 500;" onclick="cancelMedicalUpdate()">
+          ✖ Cancel Update (View Summary)
+        </button>
+      </div>
+
+      <form method="post" id="patient-medical-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_medical_info">
+        <input type="hidden" name="patient_id" id="hidden_form_patient_id" value="">
+        
+        {{ medical_form.as_p }}
+        
+        <div style="margin-top: 16px; display: flex; gap: 10px; align-items: center;">
+          <button type="submit" style="background-color: #2563eb; color: white; padding: 8px 18px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer;">
+            💾 Save Medical Record (Creates New Version)
+          </button>
+        </div>
+      </form>
+    </div>
   </article>
 </section>
 
@@ -336,27 +405,27 @@ function setAppointmentTimeNow() {
   const minutes = String(targetTime.getMinutes()).padStart(2, '0');
   timeField.value = `${hours}:${minutes}`;
 }
+let currentMedicalData = null;
+
 function selectPatientForDashboard(patientId) {
   const appointmentForm = document.querySelector('form input[name="action"][value="create_appointment"]')?.form;
-  const medicalForm = document.querySelector('form input[name="action"][value="save_medical_info"]')?.form;
   const reportForm = document.querySelector('form input[name="action"][value="upload_lab_report"]')?.form;
+  const patientSelect = document.getElementById('patient_id');
 
   if (appointmentForm) {
     const patientField = appointmentForm.querySelector('[name="patient"]');
     if (patientField) patientField.value = patientId;
   }
-  if (medicalForm) {
-    const patientField = medicalForm.querySelector('[name="patient_id"]');
-    if (patientField) {
-      patientField.value = patientId;
-      patientField.dispatchEvent(new Event('change'));
-    }
+  if (patientSelect) {
+    patientSelect.value = patientId;
   }
   if (reportForm) {
     const patientField = reportForm.querySelector('[name="patient"]');
     if (patientField) patientField.value = patientId;
   }
   
+  loadPatientMedicalInfo(patientId);
+
   // Try to find the Booking Panel and scroll to it
   const bookingPanel = appointmentForm?.closest('.panel');
   if (bookingPanel) {
@@ -368,46 +437,129 @@ function selectPatientForDashboard(patientId) {
   }
 }
 
-function loadPatientMedicalInfo(patientId, form) {
+function loadPatientMedicalInfo(patientId) {
+  const emptyPrompt = document.getElementById('medical-empty-prompt');
+  const summaryContainer = document.getElementById('medical-summary-container');
+  const formContainer = document.getElementById('medical-form-container');
+  const hiddenPatientId = document.getElementById('hidden_form_patient_id');
+  const medicalForm = document.getElementById('patient-medical-form');
+
+  if (hiddenPatientId) hiddenPatientId.value = patientId || '';
+
   if (!patientId) {
-    if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = '';
-    if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = '';
-    if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = '';
-    if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = false;
-    if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = false;
-    form.querySelectorAll('input[name="comorbidities"]').forEach(cb => cb.checked = false);
-    if (form.querySelector('#id_custom_comorbidity')) form.querySelector('#id_custom_comorbidity').value = '';
+    if (emptyPrompt) emptyPrompt.style.display = 'block';
+    if (summaryContainer) summaryContainer.style.display = 'none';
+    if (formContainer) formContainer.style.display = 'none';
+    currentMedicalData = null;
     return;
   }
 
   fetch(`/api/patient-medical-info/${patientId}/`)
     .then(response => response.json())
     .then(data => {
-      if (form.querySelector('#id_blood_group')) form.querySelector('#id_blood_group').value = data.blood_group || '';
-      if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = data.family_history || '';
-      if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = data.known_allergies || '';
-      if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = !!data.smokes;
-      if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = !!data.alcoholic;
+      currentMedicalData = data;
       
-      const comorbidities = data.comorbidities || [];
-      form.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
-        cb.checked = comorbidities.includes(parseInt(cb.value));
-      });
-      if (form.querySelector('#id_custom_comorbidity')) form.querySelector('#id_custom_comorbidity').value = '';
+      // Pre-fill form fields with latest data as defaults for update
+      if (medicalForm) {
+        if (medicalForm.querySelector('#id_blood_group')) medicalForm.querySelector('#id_blood_group').value = data.blood_group || '';
+        if (medicalForm.querySelector('#id_family_history')) medicalForm.querySelector('#id_family_history').value = data.family_history || '';
+        if (medicalForm.querySelector('#id_known_allergies')) medicalForm.querySelector('#id_known_allergies').value = data.known_allergies || '';
+        if (medicalForm.querySelector('#id_smokes')) medicalForm.querySelector('#id_smokes').checked = !!data.smokes;
+        if (medicalForm.querySelector('#id_alcohololic')) medicalForm.querySelector('#id_alcohololic').checked = !!data.alcoholic;
+        
+        const comorbidities = data.comorbidities || [];
+        medicalForm.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
+          cb.checked = comorbidities.includes(parseInt(cb.value));
+        });
+        if (medicalForm.querySelector('#id_custom_comorbidity')) medicalForm.querySelector('#id_custom_comorbidity').value = '';
+      }
+
+      if (data.exists) {
+        // Case 2: Follow-up patient (existing record) -> Show Summary View directly!
+        populateSummaryView(data);
+        if (emptyPrompt) emptyPrompt.style.display = 'none';
+        if (summaryContainer) summaryContainer.style.display = 'block';
+        if (formContainer) formContainer.style.display = 'none';
+      } else {
+        // Case 1: First time patient -> Show Form directly!
+        if (emptyPrompt) emptyPrompt.style.display = 'none';
+        if (summaryContainer) summaryContainer.style.display = 'none';
+        if (formContainer) formContainer.style.display = 'block';
+        
+        const titleElem = document.getElementById('medical-form-title');
+        if (titleElem) titleElem.textContent = '🆕 First-Time Patient Medical Info Entry';
+        const cancelBtn = document.getElementById('btn-cancel-update');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+      }
     })
     .catch(err => console.error('Error fetching patient medical info:', err));
 }
 
+function populateSummaryView(data) {
+  const tsElem = document.getElementById('summary-timestamp');
+  if (tsElem) tsElem.textContent = data.created_at ? `Recorded on: ${data.created_at}` : 'Recorded previously';
+
+  const bgElem = document.getElementById('summary-blood-group');
+  if (bgElem) bgElem.textContent = data.blood_group || 'Not specified';
+  
+  const lifestyle = [];
+  if (data.smokes) lifestyle.push('🚬 Smoker');
+  if (data.alcoholic) lifestyle.push('🍺 Alcoholic');
+  const lsElem = document.getElementById('summary-lifestyle');
+  if (lsElem) lsElem.textContent = lifestyle.length > 0 ? lifestyle.join(' | ') : 'Non-smoker, Non-alcoholic';
+
+  const algElem = document.getElementById('summary-allergies');
+  if (algElem) algElem.textContent = data.known_allergies || 'None reported';
+
+  const fhElem = document.getElementById('summary-family-history');
+  if (fhElem) fhElem.textContent = data.family_history || 'None specified';
+
+  const comContainer = document.getElementById('summary-comorbidities');
+  if (comContainer) {
+    comContainer.innerHTML = '';
+    if (data.comorbidity_names && data.comorbidity_names.length > 0) {
+      data.comorbidity_names.forEach(name => {
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; padding: 3px 10px; border-radius: 4px; font-size: 0.82rem; font-weight: 500;';
+        badge.textContent = name;
+        comContainer.appendChild(badge);
+      });
+    } else {
+      comContainer.textContent = 'None recorded';
+    }
+  }
+}
+
+function showMedicalFormForUpdate() {
+  const summaryContainer = document.getElementById('medical-summary-container');
+  const formContainer = document.getElementById('medical-form-container');
+  const titleElem = document.getElementById('medical-form-title');
+  const cancelBtn = document.getElementById('btn-cancel-update');
+
+  if (summaryContainer) summaryContainer.style.display = 'none';
+  if (formContainer) formContainer.style.display = 'block';
+  if (titleElem) titleElem.textContent = '✏️ Update Medical Info (Submitting will save as a NEW record version)';
+  if (cancelBtn) cancelBtn.style.display = 'inline-block';
+}
+
+function cancelMedicalUpdate() {
+  const summaryContainer = document.getElementById('medical-summary-container');
+  const formContainer = document.getElementById('medical-form-container');
+  if (currentMedicalData && currentMedicalData.exists) {
+    if (summaryContainer) summaryContainer.style.display = 'block';
+    if (formContainer) formContainer.style.display = 'none';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const patientSelect = document.getElementById('patient_id');
-  const medicalForm = document.querySelector('form input[name="action"][value="save_medical_info"]')?.form;
-  if (patientSelect && medicalForm) {
+  if (patientSelect) {
     patientSelect.addEventListener('change', () => {
-      loadPatientMedicalInfo(patientSelect.value, medicalForm);
+      loadPatientMedicalInfo(patientSelect.value);
     });
     // Trigger on load if a patient is pre-selected
     if (patientSelect.value) {
-      loadPatientMedicalInfo(patientSelect.value, medicalForm);
+      loadPatientMedicalInfo(patientSelect.value);
     }
   }
 });

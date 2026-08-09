@@ -205,10 +205,10 @@ def compounder_dashboard(request):
 
 		elif action == "save_medical_info":
 			patient = get_object_or_404(PatientProfile, id=request.POST.get("patient_id"))
-			existing = PatientMedicalInfo.objects.filter(patient=patient).first()
-			medical_form = PatientMedicalInfoForm(request.POST, instance=existing)
+			medical_form = PatientMedicalInfoForm(request.POST)
 			if medical_form.is_valid():
 				medical_info = medical_form.save(commit=False)
+				medical_info.id = None
 				medical_info.patient = patient
 				medical_info.save()
 				medical_form.save_m2m()
@@ -216,7 +216,7 @@ def compounder_dashboard(request):
 				if custom:
 					comorbidity, _ = Comorbidity.objects.get_or_create(name=custom.strip())
 					medical_info.comorbidities.add(comorbidity)
-				messages.success(request, "Patient medical info saved.")
+				messages.success(request, f"Medical info for {patient.get_full_name()} saved as a new record version.")
 				return _redirect_cmp(patient.id)
 			else:
 				medical_form_bound = medical_form
@@ -257,6 +257,17 @@ def compounder_dashboard(request):
 		appointment_date=date.today()
 	)
 
+	selected_patient_id = request.GET.get("selected_patient")
+	selected_patient_obj = None
+	latest_medical_info = None
+	if selected_patient_id:
+		try:
+			selected_patient_obj = PatientProfile.objects.filter(id=selected_patient_id).first()
+			if selected_patient_obj:
+				latest_medical_info = PatientMedicalInfo.objects.filter(patient=selected_patient_obj).order_by('-created_at', '-id').first()
+		except Exception:
+			pass
+
 	context = {
 		"patient_form": patient_form_bound or PatientProfileForm(),
 		"appointment_form": appointment_form_bound or AppointmentForm(initial={"status": "T"}),
@@ -268,6 +279,9 @@ def compounder_dashboard(request):
 		"pending_reports": LabResult.objects.filter(is_verified=False).select_related("patient__filerecord", "appointment")[:10],
 		"search_results": search_results,
 		"is_recent_list": is_recent_list,
+		"selected_patient_id": selected_patient_id,
+		"selected_patient_obj": selected_patient_obj,
+		"latest_medical_info": latest_medical_info,
 	}
 	return render(request, "treatment/compounder_dashboard.html", context)
 
@@ -429,10 +443,10 @@ def doctor_dashboard(request):
 
 		elif action == "save_medical_info_doctor":
 			patient = get_object_or_404(PatientProfile, id=request.POST.get("patient_id"))
-			existing = PatientMedicalInfo.objects.filter(patient=patient).first()
-			medical_form = PatientMedicalInfoForm(request.POST, instance=existing)
+			medical_form = PatientMedicalInfoForm(request.POST)
 			if medical_form.is_valid():
 				medical_info = medical_form.save(commit=False)
+				medical_info.id = None
 				medical_info.patient = patient
 				medical_info.save()
 				medical_form.save_m2m()
@@ -722,7 +736,7 @@ def get_diagnosis_status(request, appointment_id):
 
 def get_patient_medical_info(request, patient_id):
 	patient = get_object_or_404(PatientProfile, id=patient_id)
-	medical_info = PatientMedicalInfo.objects.filter(patient=patient).first()
+	medical_info = PatientMedicalInfo.objects.filter(patient=patient).order_by('-created_at', '-id').first()
 	if not medical_info:
 		return JsonResponse({
 			"exists": False,
@@ -733,10 +747,16 @@ def get_patient_medical_info(request, patient_id):
 			"alcoholic": False,
 			"comorbidities": [],
 			"comorbidity_names": [],
+			"created_at": "",
 		})
+
+	created_at_str = ""
+	if getattr(medical_info, 'created_at', None):
+		created_at_str = medical_info.created_at.strftime("%d %b %Y, %I:%M %p")
 
 	return JsonResponse({
 		"exists": True,
+		"id": medical_info.id,
 		"blood_group": medical_info.blood_group,
 		"family_history": medical_info.family_history or "",
 		"known_allergies": medical_info.known_allergies or "",
@@ -744,6 +764,7 @@ def get_patient_medical_info(request, patient_id):
 		"alcoholic": medical_info.alcohololic,
 		"comorbidities": list(medical_info.comorbidities.values_list("id", flat=True)),
 		"comorbidity_names": list(medical_info.comorbidities.values_list("name", flat=True)),
+		"created_at": created_at_str,
 	})
 
 
