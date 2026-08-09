@@ -1,7 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from user.models import User
-from utils.storages import DoctorPhotoStorage
+from utils.storages import DoctorPhotoStorage, DoctorSignatureStorage
 
 
 def doctor_photo_upload_path(instance, filename):
@@ -9,6 +9,13 @@ def doctor_photo_upload_path(instance, filename):
     ext = filename.split('.')[-1]
     name = f"doctor_{instance.id or 'profile'}.{ext}"
     return os.path.join("photos", name)
+
+
+def doctor_signature_upload_path(instance, filename):
+    import os
+    ext = filename.split('.')[-1]
+    name = f"doctor_signature_{instance.id or 'profile'}.{ext}"
+    return os.path.join("signatures", name)
 
 
 class Doctor(User):
@@ -19,6 +26,14 @@ class Doctor(User):
         null=True,
         help_text="Profile photo of the doctor",
         verbose_name="Doctor Photo",
+    )
+    signature = models.ImageField(
+        upload_to=doctor_signature_upload_path,
+        storage=DoctorSignatureStorage(),
+        blank=True,
+        null=True,
+        help_text="Signature image of the doctor",
+        verbose_name="Doctor Signature",
     )
     contact_no = models.CharField(max_length=20, help_text="Contact number of the doctor", verbose_name="Contact Number")
     highest_qualification = models.CharField(max_length=255, help_text="Highest qualification of the doctor", verbose_name="Highest Qualification")

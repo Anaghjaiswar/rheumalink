@@ -35,3 +35,13 @@ class DoctorPhotoStorage(BaseMinioStorage):
         self.querystring_auth = False
 
 
+class DoctorSignatureStorage(BaseMinioStorage):
+    bucket_name = 'doctor-signatures'
+
+    def __init__(self, *args, **kwargs):
+        kwargs['querystring_auth'] = False
+        super().__init__(*args, **kwargs)
+        self.querystring_auth = False
+
+
+

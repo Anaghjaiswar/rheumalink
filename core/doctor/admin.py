@@ -22,7 +22,7 @@ class DoctorAdmin(BaseUserAdmin):
 
 	fieldsets = (
 		(None, {"fields": ("email", "password")}),
-		(_("Personal Info"), {"fields": ("first_name", "last_name", "photo", "contact_no")}),
+		(_("Personal Info"), {"fields": ("first_name", "last_name", "photo", "signature", "contact_no")}),
 		(_("Professional Details"), {"fields": ("specialization", "highest_qualification", "years_of_experience")}),
 		(_("Permissions & Role"), {"fields": ("role", "is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
 		(_("Important Dates"), {"fields": ("last_login", "date_joined")}),

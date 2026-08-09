@@ -45,6 +45,7 @@ class Command(BaseCommand):
         buckets = {
             'clinic-logos': True,
             'doctor-photos': True,
+            'doctor-signatures': True,
             'lab-reports': False,
             'prescriptions': False,
             'patient-documents': False,

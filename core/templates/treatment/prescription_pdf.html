@@ -300,7 +300,11 @@
             </td>
             <td style="width: 40%; text-align: right; vertical-align: bottom;">
                 <div style="display: inline-block; text-align: left;">
-                    <div class="sig-line"></div>
+                    {% if doctor.signature %}
+                        <img src="{{ doctor.signature.url }}" alt="Doctor Signature" style="max-height: 45px; max-width: 180px; display: block; margin-bottom: 4px;">
+                    {% else %}
+                        <div class="sig-line"></div>
+                    {% endif %}
                     <div class="sig-text">{{ doctor.name }}</div>
                     <div style="font-size: 8pt; color: #94a3b8;">Attending Rheumatologist</div>
                 </div>
