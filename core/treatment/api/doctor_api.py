@@ -1,26 +1,23 @@
-from datetime import date
-import json
-from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.authentication import SessionAuthentication
 
 from doctor.models import Doctor
-from patient.models import PatientProfile
-from treatment.forms import AppointmentUpdateForm, ConsultationForm, PatientDiagnosisForm, PrescriptionForm
-from treatment.models import Appointment, Consultation, LabResult, LabTest, Medicine, Prescription, PrescriptionItem, jointspain, RumatDiagnosis
-from treatment.views import _broadcast_queue_update, _doctor_queryset, _generate_prescription_pdf
+from treatment.forms import ConsultationForm, PrescriptionForm
+from treatment.models import Appointment, Consultation, LabTest, Medicine, Prescription, PrescriptionItem
+from treatment.views import _broadcast_queue_update, _doctor_queryset
 
-@csrf_exempt
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def get_doctor_dashboard_api(request):
     """
     GET API for Doctor Dashboard.
-    Returns today's doctor appointments separated into attending, attended, and waiting,
-    plus doctor list, lab reports, common tests, and search results.
+    Requires JWT or Session authentication.
     """
-    if request.method != "GET":
-        return JsonResponse({"ok": False, "error": "Only GET allowed"}, status=405)
-
     doctor_id = request.GET.get("doctor_id") or request.GET.get("doctor")
     if doctor_id:
         try:
@@ -58,7 +55,7 @@ def get_doctor_dashboard_api(request):
 
     common_tests = list(LabTest.objects.filter(is_common=True).values("id", "name"))
 
-    return JsonResponse({
+    return Response({
         "ok": True,
         "selected_doctor_id": doctor_id,
         "counts": {
@@ -75,74 +72,71 @@ def get_doctor_dashboard_api(request):
     })
 
 
-@csrf_exempt
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def save_consultation_api(request, appointment_id):
     """
     POST API to save consultation notes, prescription medicines, and prescribed lab tests.
+    Requires JWT or Session authentication.
     """
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "Only POST allowed"}, status=405)
-
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
-    try:
-        data = json.loads(request.body) if request.content_type == "application/json" else request.POST
+    data = request.data
 
-        consultation, _ = Consultation.objects.get_or_create(
-            appointment=appointment,
-            defaults={"patient": appointment.patient},
-        )
-        consult_form = ConsultationForm(data, instance=consultation)
+    consultation, _ = Consultation.objects.get_or_create(
+        appointment=appointment,
+        defaults={"patient": appointment.patient},
+    )
+    consult_form = ConsultationForm(data, instance=consultation)
 
-        prescription, _ = Prescription.objects.get_or_create(consultation=consultation)
-        prescription_form = PrescriptionForm(data, instance=prescription)
+    prescription, _ = Prescription.objects.get_or_create(consultation=consultation)
+    prescription_form = PrescriptionForm(data, instance=prescription)
 
-        if consult_form.is_valid() and prescription_form.is_valid():
-            consultation = consult_form.save(commit=False)
-            consultation.patient = appointment.patient
-            consultation.appointment = appointment
-            consultation.save()
+    if consult_form.is_valid() and prescription_form.is_valid():
+        consultation = consult_form.save(commit=False)
+        consultation.patient = appointment.patient
+        consultation.appointment = appointment
+        consultation.save()
 
-            prescription = prescription_form.save(commit=False)
-            prescription.consultation = consultation
-            prescription.save()
+        prescription = prescription_form.save(commit=False)
+        prescription.consultation = consultation
+        prescription.save()
 
-            test_ids = data.get("prescribed_tests", [])
-            if test_ids:
-                prescription.prescribed_tests.set(test_ids)
+        test_ids = data.get("prescribed_tests", [])
+        if test_ids:
+            prescription.prescribed_tests.set(test_ids)
 
-            medicines_data = data.get("items", [])
-            if medicines_data:
-                prescription.items.all().delete()
-                for item in medicines_data:
-                    med_name = item.get("medicine") or item.get("medicine_name")
-                    if not med_name:
-                        continue
-                    med_obj, _ = Medicine.objects.get_or_create(medicine_name=med_name)
-                    PrescriptionItem.objects.create(
-                        prescription=prescription,
-                        medicine=med_obj,
-                        dosage=item.get("dosage", ""),
-                        duration=item.get("duration", ""),
-                        instructions=item.get("instructions", ""),
-                    )
+        medicines_data = data.get("items", [])
+        if medicines_data:
+            prescription.items.all().delete()
+            for item in medicines_data:
+                med_name = item.get("medicine") or item.get("medicine_name")
+                if not med_name:
+                    continue
+                med_obj, _ = Medicine.objects.get_or_create(medicine_name=med_name)
+                PrescriptionItem.objects.create(
+                    prescription=prescription,
+                    medicine=med_obj,
+                    dosage=item.get("dosage", ""),
+                    duration=item.get("duration", ""),
+                    instructions=item.get("instructions", ""),
+                )
 
-            appointment.status = data.get("post_consult_status") or "A"
-            appointment.save(update_fields=["status", "updated_at"])
-            _broadcast_queue_update(appointment.doctor_id)
+        appointment.status = data.get("post_consult_status") or "A"
+        appointment.save(update_fields=["status", "updated_at"])
+        _broadcast_queue_update(appointment.doctor_id)
 
-            return JsonResponse({
-                "ok": True,
-                "message": "Consultation and prescription saved successfully.",
-                "prescription_id": prescription.id,
-                "consultation_id": consultation.id,
-            })
-        else:
-            errors = {}
-            if not consult_form.is_valid():
-                errors["consultation"] = consult_form.errors
-            if not prescription_form.is_valid():
-                errors["prescription"] = prescription_form.errors
-            return JsonResponse({"ok": False, "errors": errors}, status=400)
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return Response({
+            "ok": True,
+            "message": "Consultation and prescription saved successfully.",
+            "prescription_id": prescription.id,
+            "consultation_id": consultation.id,
+        })
+    else:
+        errors = {}
+        if not consult_form.is_valid():
+            errors["consultation"] = consult_form.errors
+        if not prescription_form.is_valid():
+            errors["prescription"] = prescription_form.errors
+        return Response({"ok": False, "errors": errors}, status=400)

@@ -1,25 +1,25 @@
 from datetime import date
-import json
 from django.db.models import Q
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.authentication import SessionAuthentication
 
-from patient.models import FileRecord, PatientMedicalInfo, PatientProfile
-from treatment.forms import AppointmentForm, AppointmentUpdateForm, PatientProfileForm
-from treatment.models import Appointment, LabResult
+from patient.models import FileRecord, PatientProfile
+from treatment.forms import AppointmentForm, PatientProfileForm
+from treatment.models import Appointment
 from treatment.views import _broadcast_queue_update
 
-@csrf_exempt
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def get_compounder_dashboard_api(request):
     """
     GET API for Compounder Dashboard overview.
-    Returns today's appointments (waiting, attending, attended), search results if query provided,
-    recent patients, and pending lab reports.
+    Requires JWT or Session authentication.
     """
-    if request.method != "GET":
-        return JsonResponse({"ok": False, "error": "Only GET allowed"}, status=405)
-
     search_q = request.GET.get("search_q", "").strip()
     is_recent_list = False
     if search_q:
@@ -83,7 +83,7 @@ def get_compounder_dashboard_api(request):
             "type": p.type,
         })
 
-    return JsonResponse({
+    return Response({
         "ok": True,
         "counts": {
             "waiting": waiting_count,
@@ -98,64 +98,62 @@ def get_compounder_dashboard_api(request):
     })
 
 
-@csrf_exempt
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def register_patient_api(request):
-    """POST API to register new patient profile."""
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "Only POST allowed"}, status=405)
+    """
+    POST API to register new patient profile.
+    Requires JWT or Session authentication.
+    """
+    data = request.data
+    form = PatientProfileForm(data)
+    if form.is_valid():
+        patient = form.save()
+        ext_num = data.get("external_file_number", "").strip() or None
+        file_rec, created = FileRecord.objects.get_or_create(patient=patient, defaults={"external_file_number": ext_num})
+        if not created and ext_num and not file_rec.external_file_number:
+            file_rec.external_file_number = ext_num
+            file_rec.save()
 
-    try:
-        data = json.loads(request.body) if request.content_type == "application/json" else request.POST
-        form = PatientProfileForm(data)
-        if form.is_valid():
-            patient = form.save()
-            ext_num = data.get("external_file_number", "").strip() or None
-            file_rec, created = FileRecord.objects.get_or_create(patient=patient, defaults={"external_file_number": ext_num})
-            if not created and ext_num and not file_rec.external_file_number:
-                file_rec.external_file_number = ext_num
-                file_rec.save()
-
-            return JsonResponse({
-                "ok": True,
-                "message": f"Patient '{patient.get_full_name()}' registered successfully.",
-                "patient": {
-                    "id": patient.id,
-                    "name": patient.get_full_name(),
-                    "internal_file": file_rec.internal_file_number,
-                    "external_file": file_rec.external_file_number or "-",
-                    "contact": patient.contact_no,
-                }
-            })
-        else:
-            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return Response({
+            "ok": True,
+            "message": f"Patient '{patient.get_full_name()}' registered successfully.",
+            "patient": {
+                "id": patient.id,
+                "name": patient.get_full_name(),
+                "internal_file": file_rec.internal_file_number,
+                "external_file": file_rec.external_file_number or "-",
+                "contact": patient.contact_no,
+            }
+        })
+    else:
+        return Response({"ok": False, "errors": form.errors}, status=400)
 
 
-@csrf_exempt
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def create_appointment_api(request):
-    """POST API to create a new appointment."""
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "Only POST allowed"}, status=405)
-
-    try:
-        data = json.loads(request.body) if request.content_type == "application/json" else request.POST
-        form = AppointmentForm(data)
-        if form.is_valid():
-            appointment = form.save()
-            _broadcast_queue_update(appointment.doctor_id)
-            return JsonResponse({
-                "ok": True,
-                "message": f"Appointment created with token {appointment.token_number}.",
-                "appointment": {
-                    "id": appointment.id,
-                    "token_number": appointment.token_number,
-                    "patient_id": appointment.patient_id,
-                    "doctor_id": appointment.doctor_id,
-                    "date": appointment.appointment_date.strftime("%Y-%m-%d"),
-                }
-            })
-        else:
-            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+    """
+    POST API to create a new appointment.
+    Requires JWT or Session authentication.
+    """
+    data = request.data
+    form = AppointmentForm(data)
+    if form.is_valid():
+        appointment = form.save()
+        _broadcast_queue_update(appointment.doctor_id)
+        return Response({
+            "ok": True,
+            "message": f"Appointment created with token {appointment.token_number}.",
+            "appointment": {
+                "id": appointment.id,
+                "token_number": appointment.token_number,
+                "patient_id": appointment.patient_id,
+                "doctor_id": appointment.doctor_id,
+                "date": appointment.appointment_date.strftime("%Y-%m-%d"),
+            }
+        })
+    else:
+        return Response({"ok": False, "errors": form.errors}, status=400)

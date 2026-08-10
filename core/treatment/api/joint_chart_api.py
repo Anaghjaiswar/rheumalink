@@ -1,22 +1,22 @@
 import json
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.authentication import SessionAuthentication
 
 from treatment.forms import JointPainForm
 from treatment.models import Appointment, jointspain
 
-@csrf_exempt
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def get_joint_chart_api(request, appointment_id):
     """
     GET API for Joint Assessment Chart.
-    Returns patient info, appointment details, latest joint states (for 44 joints),
-    and recent joint chart assessment history.
+    Requires JWT or Session authentication.
     """
-    if request.method != "GET":
-        return JsonResponse({"ok": False, "error": "Only GET allowed"}, status=405)
-
     appointment = get_object_or_404(Appointment.objects.select_related("patient", "doctor"), id=appointment_id)
     patient = appointment.patient
 
@@ -55,7 +55,7 @@ def get_joint_chart_api(request, appointment_id):
             "tender": tender,
         })
 
-    return JsonResponse({
+    return Response({
         "ok": True,
         "appointment": {
             "id": appointment.id,
@@ -74,53 +74,45 @@ def get_joint_chart_api(request, appointment_id):
     })
 
 
-@csrf_exempt
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def save_joint_chart_api(request, appointment_id):
     """
     POST API to save Joint Assessment Chart entries.
-    Accepts JSON body containing joint state key-values for 44 joints.
+    Requires JWT or Session authentication.
     """
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "Only POST allowed"}, status=405)
-
     appointment = get_object_or_404(Appointment.objects.select_related("patient"), id=appointment_id)
     patient = appointment.patient
 
-    try:
-        if request.content_type == "application/json":
-            data = json.loads(request.body)
-        else:
-            data = request.POST
+    data = request.data
+    form = JointPainForm(data)
+    if form.is_valid():
+        record = form.save(commit=False)
+        record.patient_link = patient
+        record.save()
 
-        form = JointPainForm(data)
-        if form.is_valid():
-            record = form.save(commit=False)
-            record.patient_link = patient
-            record.save()
+        swollen = 0
+        tender = 0
+        for field in record._meta.fields:
+            name = field.name
+            if name in {"id", "date_of_assessment", "patient_link"}:
+                continue
+            val = getattr(record, name)
+            if val == "red":
+                swollen += 1
+            elif val == "blue":
+                tender += 1
+            elif val == "orange":
+                swollen += 1
+                tender += 1
 
-            swollen = 0
-            tender = 0
-            for field in record._meta.fields:
-                name = field.name
-                if name in {"id", "date_of_assessment", "patient_link"}:
-                    continue
-                val = getattr(record, name)
-                if val == "red":
-                    swollen += 1
-                elif val == "blue":
-                    tender += 1
-                elif val == "orange":
-                    swollen += 1
-                    tender += 1
-
-            return JsonResponse({
-                "ok": True,
-                "message": "Joint chart saved successfully.",
-                "record_id": record.id,
-                "swollen_count": swollen,
-                "tender_count": tender,
-            })
-        else:
-            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
-    except Exception as e:
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return Response({
+            "ok": True,
+            "message": "Joint chart saved successfully.",
+            "record_id": record.id,
+            "swollen_count": swollen,
+            "tender_count": tender,
+        })
+    else:
+        return Response({"ok": False, "errors": form.errors}, status=400)
