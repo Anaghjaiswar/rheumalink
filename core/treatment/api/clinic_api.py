@@ -8,7 +8,7 @@ from clinic.models import ClinicSettings
 @permission_classes([AllowAny])
 def get_clinic_settings_api(request):
     """
-    GET API to return cached ClinicSettings from Redis DB.
+    GET API to return cached ClinicSettings directly from database / Redis cache.
     Uses cache key 'clinic_settings_cached' matching prescription PDF rendering engine.
     """
     clinic = cache.get("clinic_settings_cached")
@@ -18,9 +18,13 @@ def get_clinic_settings_api(request):
             cache.set("clinic_settings_cached", clinic, 300)
 
     if not clinic:
+        # Emergency query fallback directly from DB table
+        clinic = ClinicSettings.objects.first()
+
+    if not clinic:
         return Response({
             "ok": True,
-            "name": "RheumaLink",
+            "name": "",
             "contact_email": "",
             "contact_number": "",
             "address": "",
