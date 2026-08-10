@@ -18,7 +18,7 @@ from treatment.views import _broadcast_queue_update
 def get_compounder_dashboard_api(request):
     """
     GET API for Compounder Dashboard overview.
-    Requires JWT or Session authentication.
+    Queries database for actual patient records and appointments.
     """
     search_q = request.GET.get("search_q", "").strip()
     is_recent_list = False
@@ -45,14 +45,15 @@ def get_compounder_dashboard_api(request):
             "type": p.type,
         })
 
-    today_appts = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
+    today_qs = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
+    appts_qs = today_qs if today_qs.exists() else Appointment.objects.select_related("patient__filerecord", "doctor").order_by("-appointment_date", "token_number")[:20]
     
     appts_data = []
     waiting_count = 0
     attending_count = 0
     attended_count = 0
 
-    for appt in today_appts:
+    for appt in appts_qs:
         if appt.status == "T":
             waiting_count += 1
         elif appt.status == "I":
@@ -71,6 +72,7 @@ def get_compounder_dashboard_api(request):
             "status": appt.get_status_display(),
             "status_code": appt.status,
             "visit_reason": appt.reason_for_visit or "",
+            "appointment_date": appt.appointment_date.strftime("%Y-%m-%d"),
         })
 
     recent_patients = []
@@ -89,7 +91,7 @@ def get_compounder_dashboard_api(request):
             "waiting": waiting_count,
             "attending": attending_count,
             "attended": attended_count,
-            "total_today": today_appts.count(),
+            "total_today": appts_qs.count(),
         },
         "today_appointments": appts_data,
         "recent_patients": recent_patients,
@@ -104,7 +106,6 @@ def get_compounder_dashboard_api(request):
 def register_patient_api(request):
     """
     POST API to register new patient profile.
-    Requires JWT or Session authentication.
     """
     data = request.data
     form = PatientProfileForm(data)
@@ -137,7 +138,6 @@ def register_patient_api(request):
 def create_appointment_api(request):
     """
     POST API to create a new appointment.
-    Requires JWT or Session authentication.
     """
     data = request.data
     form = AppointmentForm(data)

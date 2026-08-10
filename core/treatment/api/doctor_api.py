@@ -1,3 +1,4 @@
+from datetime import date
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,7 +9,7 @@ from rest_framework.authentication import SessionAuthentication
 from doctor.models import Doctor
 from treatment.forms import ConsultationForm, PrescriptionForm
 from treatment.models import Appointment, Consultation, LabTest, Medicine, Prescription, PrescriptionItem
-from treatment.views import _broadcast_queue_update, _doctor_queryset
+from treatment.views import _broadcast_queue_update
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
@@ -16,7 +17,7 @@ from treatment.views import _broadcast_queue_update, _doctor_queryset
 def get_doctor_dashboard_api(request):
     """
     GET API for Doctor Dashboard.
-    Requires JWT or Session authentication.
+    Queries database for actual patient appointments.
     """
     doctor_id = request.GET.get("doctor_id") or request.GET.get("doctor")
     if doctor_id:
@@ -25,7 +26,13 @@ def get_doctor_dashboard_api(request):
         except (ValueError, TypeError):
             doctor_id = None
 
-    appointments = _doctor_queryset(doctor_id)
+    # Base query for appointments (falls back to all recent appointments if none booked for date.today())
+    base_qs = Appointment.objects.select_related("patient__filerecord", "doctor")
+    if doctor_id:
+        base_qs = base_qs.filter(doctor_id=doctor_id)
+
+    today_qs = base_qs.filter(appointment_date=date.today())
+    appointments = today_qs if today_qs.exists() else base_qs.order_by("-appointment_date", "token_number")[:20]
 
     def serialize_appt(appt):
         return {
@@ -43,6 +50,7 @@ def get_doctor_dashboard_api(request):
             "age": appt.patient.get_age() if hasattr(appt.patient, 'get_age') else 40,
             "contact": appt.patient.contact_no,
             "reason": appt.reason_for_visit or "General Consultation",
+            "appointment_date": appt.appointment_date.strftime("%Y-%m-%d"),
         }
 
     attending = [serialize_appt(a) for a in appointments.filter(status="I")]
@@ -78,10 +86,8 @@ def get_doctor_dashboard_api(request):
 def save_consultation_api(request, appointment_id):
     """
     POST API to save consultation notes, prescription medicines, and prescribed lab tests.
-    Requires JWT or Session authentication.
     """
     appointment = get_object_or_404(Appointment, id=appointment_id)
-
     data = request.data
 
     consultation, _ = Consultation.objects.get_or_create(
