@@ -1,5 +1,6 @@
 from datetime import date
-from django.db.models import Q
+from django.db.models import Q, Value, CharField
+from django.db.models.functions import Concat
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -17,21 +18,37 @@ from treatment.views import _broadcast_queue_update
 @permission_classes([IsAuthenticated])
 def get_compounder_dashboard_api(request):
     """
-    GET API for Compounder Dashboard overview.
+    GET API for Compounder Dashboard overview & multi-field Patient Search.
     Queries database for actual patient records and appointments.
     """
     search_q = request.GET.get("search_q", "").strip()
     is_recent_list = False
+
+    base_patients = PatientProfile.objects.select_related("filerecord").annotate(
+        full_name_str=Concat("first_name", Value(" "), "last_name", output_field=CharField())
+    )
+
     if search_q:
-        search_results_qs = PatientProfile.objects.select_related("filerecord").filter(
-            Q(first_name__icontains=search_q) |
-            Q(last_name__icontains=search_q) |
-            Q(contact_no__icontains=search_q) |
-            Q(filerecord__internal_file_number__icontains=search_q) |
-            Q(filerecord__external_file_number__icontains=search_q)
-        ).distinct()[:15]
+        tokens = search_q.split()
+        search_filter = Q(first_name__icontains=search_q) | \
+                        Q(last_name__icontains=search_q) | \
+                        Q(full_name_str__icontains=search_q) | \
+                        Q(contact_no__icontains=search_q) | \
+                        Q(filerecord__internal_file_number__icontains=search_q) | \
+                        Q(filerecord__external_file_number__icontains=search_q)
+
+        # Allow tokenized multi-word search (e.g. "Anagh Jaiswar")
+        for token in tokens:
+            search_filter |= (
+                Q(first_name__icontains=token) |
+                Q(last_name__icontains=token) |
+                Q(contact_no__icontains=token) |
+                Q(filerecord__internal_file_number__icontains=token)
+            )
+
+        search_results_qs = base_patients.filter(search_filter).distinct()[:25]
     else:
-        search_results_qs = PatientProfile.objects.select_related("filerecord").order_by("-id")[:10]
+        search_results_qs = base_patients.order_by("-id")[:10]
         is_recent_list = True
 
     search_results = []
@@ -39,10 +56,10 @@ def get_compounder_dashboard_api(request):
         search_results.append({
             "id": p.id,
             "name": p.get_full_name(),
-            "contact": p.contact_no,
+            "contact": p.contact_no or "-",
             "internal_file": p.filerecord.internal_file_number if hasattr(p, "filerecord") else "-",
             "external_file": p.filerecord.external_file_number if (hasattr(p, "filerecord") and p.filerecord.external_file_number) else "-",
-            "type": p.type,
+            "type": p.type or "NEW",
         })
 
     today_qs = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
