@@ -8,8 +8,12 @@ from .medical_info_api import get_patient_medical_info_api, save_patient_medical
 from .diagnosis_api import save_diagnosis_api, das28_score_api
 from .autosuggest_api import medicine_autosuggest_api, labtest_autosuggest_api
 from .prescription_api import download_prescription_pdf_api, send_prescription_whatsapp_api
+from .clinic_api import get_clinic_settings_api
 
 urlpatterns = [
+    # Clinic Settings API (Public & Cached)
+    path("v1/clinic/settings/", get_clinic_settings_api, name="api-v1-clinic-settings"),
+
     # Compounder Desk API Endpoints
     path("v1/compounder/dashboard/", get_compounder_dashboard_api, name="api-v1-compounder-dashboard"),
     path("v1/compounder/patient/register/", register_patient_api, name="api-v1-compounder-register"),
