@@ -1,8 +1,9 @@
-from django.urls import path
+from django.urls import include, path
 from services.ai_service_manager import AIServiceManager
 from . import views
 
 urlpatterns = [
+    path("api/", include("treatment.api.urls")),
     path("", views.compounder_dashboard, name="compounder-dashboard"),
     path("compounder-dashboard/", views.compounder_dashboard, name="compounder-dashboard"),
     path("doctor-dashboard/", views.doctor_dashboard, name="doctor-dashboard"),
