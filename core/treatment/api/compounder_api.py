@@ -18,8 +18,9 @@ from treatment.views import _broadcast_queue_update
 @permission_classes([IsAuthenticated])
 def get_compounder_dashboard_api(request):
     """
-    GET API for Compounder Dashboard overview & multi-field Patient Search.
-    Queries database for actual patient records and appointments.
+    GET API for Compounder Dashboard overview.
+    Follows exact Django views.py query logic:
+    Filters appointments strictly by appointment_date = date.today().
     """
     search_q = request.GET.get("search_q", "").strip()
     is_recent_list = False
@@ -37,7 +38,6 @@ def get_compounder_dashboard_api(request):
                         Q(filerecord__internal_file_number__icontains=search_q) | \
                         Q(filerecord__external_file_number__icontains=search_q)
 
-        # Allow tokenized multi-word search (e.g. "Anagh Jaiswar")
         for token in tokens:
             search_filter |= (
                 Q(first_name__icontains=token) |
@@ -62,15 +62,15 @@ def get_compounder_dashboard_api(request):
             "type": p.type or "NEW",
         })
 
-    today_qs = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
-    appts_qs = today_qs if today_qs.exists() else Appointment.objects.select_related("patient__filerecord", "doctor").order_by("-appointment_date", "token_number")[:20]
+    # Exact views.py query: filter strictly by date.today()
+    today_appts = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
     
     appts_data = []
     waiting_count = 0
     attending_count = 0
     attended_count = 0
 
-    for appt in appts_qs:
+    for appt in today_appts:
         if appt.status == "T":
             waiting_count += 1
         elif appt.status == "I":
@@ -108,7 +108,7 @@ def get_compounder_dashboard_api(request):
             "waiting": waiting_count,
             "attending": attending_count,
             "attended": attended_count,
-            "total_today": appts_qs.count(),
+            "total_today": today_appts.count(),
         },
         "today_appointments": appts_data,
         "recent_patients": recent_patients,

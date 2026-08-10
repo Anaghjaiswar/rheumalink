@@ -17,7 +17,8 @@ from treatment.views import _broadcast_queue_update
 def get_doctor_dashboard_api(request):
     """
     GET API for Doctor Dashboard.
-    Queries database for actual patient appointments.
+    Follows exact Django views.py query logic:
+    Filters appointments strictly by appointment_date = date.today().
     """
     doctor_id = request.GET.get("doctor_id") or request.GET.get("doctor")
     if doctor_id:
@@ -26,13 +27,10 @@ def get_doctor_dashboard_api(request):
         except (ValueError, TypeError):
             doctor_id = None
 
-    # Base query for appointments (falls back to all recent appointments if none booked for date.today())
-    base_qs = Appointment.objects.select_related("patient__filerecord", "doctor")
+    # Exact views.py query: filter strictly by date.today()
+    appointments = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
     if doctor_id:
-        base_qs = base_qs.filter(doctor_id=doctor_id)
-
-    today_qs = base_qs.filter(appointment_date=date.today())
-    appointments = today_qs if today_qs.exists() else base_qs.order_by("-appointment_date", "token_number")[:20]
+        appointments = appointments.filter(doctor_id=doctor_id)
 
     def serialize_appt(appt):
         return {
