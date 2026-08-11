@@ -104,7 +104,7 @@ class PatientMedicalInfo(models.Model):
     family_history = models.TextField(help_text="Family medical history of the patient", verbose_name="Family History", blank=True, null=True)
     known_allergies = models.TextField(help_text="Known allergies of the patient", verbose_name="Known Allergies", blank=True, null=True)
     smokes = models.BooleanField(help_text="Whether the patient smokes or not", verbose_name="Smokes")
-    alcohololic = models.BooleanField(help_text="Whether the patient is an alcoholic or not", verbose_name="Alcoholic")
+    alcoholic = models.BooleanField(help_text="Whether the patient is an alcoholic or not", verbose_name="Alcoholic")
     comorbidities = models.ManyToManyField(Comorbidity, help_text="Comorbidities of the patient", verbose_name="Comorbidities", blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, help_text="Timestamp when this medical info record was created")
 

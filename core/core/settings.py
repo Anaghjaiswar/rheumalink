@@ -37,9 +37,19 @@ INSTALLED_APPS = [
 
 AUTH_USER_MODEL = 'user.User'
 
-# CORS Settings (django-cors-headers)
+# CORS & CSRF Trusted Origins
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8443",
+    "http://127.0.0.1:8443",
+    "https://localhost:8443",
+    "https://127.0.0.1:8443",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',

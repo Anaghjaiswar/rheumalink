@@ -815,7 +815,7 @@ function fetchMedicalInfo(patientId) {
         if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = data.family_history || '';
         if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = data.known_allergies || '';
         if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = !!data.smokes;
-        if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = !!data.alcoholic;
+        if (form.querySelector('#id_alcoholic')) form.querySelector('#id_alcoholic').checked = !!data.alcoholic;
         
         const comorbidities = data.comorbidities || [];
         form.querySelectorAll('input[name="comorbidities"]').forEach(cb => {
@@ -832,7 +832,7 @@ function fetchMedicalInfo(patientId) {
         if (form.querySelector('#id_family_history')) form.querySelector('#id_family_history').value = '';
         if (form.querySelector('#id_known_allergies')) form.querySelector('#id_known_allergies').value = '';
         if (form.querySelector('#id_smokes')) form.querySelector('#id_smokes').checked = false;
-        if (form.querySelector('#id_alcohololic')) form.querySelector('#id_alcohololic').checked = false;
+        if (form.querySelector('#id_alcoholic')) form.querySelector('#id_alcoholic').checked = false;
         form.querySelectorAll('input[name="comorbidities"]').forEach(cb => cb.checked = false);
         
         summaryView.style.display = 'none';

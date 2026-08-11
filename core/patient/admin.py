@@ -86,8 +86,8 @@ class ComorbidityAdmin(admin.ModelAdmin):
 
 @admin.register(PatientMedicalInfo)
 class PatientMedicalInfoAdmin(admin.ModelAdmin):
-	list_display = ("patient", "blood_group", "smokes", "alcohololic", "created_at")
-	list_filter = ("blood_group", "smokes", "alcohololic", "created_at", "comorbidities")
+	list_display = ("patient", "blood_group", "smokes", "alcoholic", "created_at")
+	list_filter = ("blood_group", "smokes", "alcoholic", "created_at", "comorbidities")
 	search_fields = ("patient__first_name", "patient__last_name", "known_allergies", "family_history")
 	readonly_fields = ("created_at",)
 	filter_horizontal = ("comorbidities",)
