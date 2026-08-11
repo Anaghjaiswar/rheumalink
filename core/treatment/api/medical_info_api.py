@@ -12,9 +12,15 @@ from treatment.forms import PatientMedicalInfoForm
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def get_patient_medical_info_api(request, patient_id):
-    """GET API for patient medical history."""
+    """
+    GET API for patient medical history & database comorbidities list.
+    Queries database directly for all available Comorbidity objects.
+    """
     patient = get_object_or_404(PatientProfile, id=patient_id)
     medical_info = PatientMedicalInfo.objects.filter(patient=patient).order_by('-created_at', '-id').first()
+    
+    all_comorbidities = list(Comorbidity.objects.all().values("id", "name"))
+
     if not medical_info:
         return Response({
             "exists": False,
@@ -25,6 +31,7 @@ def get_patient_medical_info_api(request, patient_id):
             "alcoholic": False,
             "comorbidities": [],
             "comorbidity_names": [],
+            "all_comorbidities": all_comorbidities,
             "created_at": "",
         })
 
@@ -42,6 +49,7 @@ def get_patient_medical_info_api(request, patient_id):
         "alcoholic": getattr(medical_info, 'alcohololic', False),
         "comorbidities": list(medical_info.comorbidities.values_list("id", flat=True)),
         "comorbidity_names": list(medical_info.comorbidities.values_list("name", flat=True)),
+        "all_comorbidities": all_comorbidities,
         "created_at": created_at_str,
     })
 
@@ -50,7 +58,9 @@ def get_patient_medical_info_api(request, patient_id):
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def save_patient_medical_info_api(request, patient_id):
-    """POST API to save new version of patient medical info with custom comorbidities."""
+    """
+    POST API to save new version of patient medical info with custom comorbidities.
+    """
     patient = get_object_or_404(PatientProfile, id=patient_id)
     data = request.data
     form = PatientMedicalInfoForm(data)
