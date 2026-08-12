@@ -1,4 +1,5 @@
 from datetime import date
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -9,138 +10,172 @@ from rest_framework.authentication import SessionAuthentication
 from doctor.models import Doctor
 from treatment.forms import ConsultationForm, PrescriptionForm
 from treatment.models import Appointment, Consultation, LabTest, Medicine, Prescription, PrescriptionItem
+from treatment.serializers import (
+    AppointmentSerializer,
+    ConsultationSerializer,
+    DoctorSerializer,
+    LabTestSerializer,
+    PrescriptionSerializer,
+)
 from treatment.views import _broadcast_queue_update
+
+def _safe_str(val):
+    if val is None:
+        return ""
+    return str(val).strip()
+
+def _get_user_role(request):
+    if hasattr(request, 'auth') and isinstance(request.auth, dict) and 'role' in request.auth:
+        return request.auth['role']
+    return getattr(request.user, 'role', None)
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication, SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def get_doctors_list_api(request):
+    """
+    GET API to return list of active clinic doctors.
+    Accessible by staff accounts (COMPOUNDER or DOCTOR).
+    """
+    try:
+        doctors_list = DoctorSerializer(Doctor.objects.all(), many=True).data
+        return Response({"ok": True, "doctors": doctors_list})
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def get_doctor_dashboard_api(request):
     """
-    GET API for Doctor Dashboard.
-    Follows exact Django views.py query logic:
+    GET API for Doctor Dashboard using DRF Serializers & Strict JWT Role Check.
     Filters appointments strictly by appointment_date = date.today().
     """
-    doctor_id = request.GET.get("doctor_id") or request.GET.get("doctor")
-    if doctor_id:
-        try:
-            doctor_id = int(doctor_id)
-        except (ValueError, TypeError):
-            doctor_id = None
+    try:
+        role = _get_user_role(request)
+        if role != 'DOCTOR' and not getattr(request.user, 'is_superuser', False):
+            return Response({"ok": False, "error": "Access denied. Only doctors can access the Doctor Desk."}, status=403)
 
-    # Exact views.py query: filter strictly by date.today()
-    appointments = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
-    if doctor_id:
-        appointments = appointments.filter(doctor_id=doctor_id)
+        doctor_id = request.GET.get("doctor_id") or request.GET.get("doctor")
+        if doctor_id:
+            try:
+                doctor_id = int(doctor_id)
+            except (ValueError, TypeError):
+                doctor_id = None
 
-    def serialize_appt(appt):
-        return {
-            "id": appt.id,
-            "token": f"Token {appt.token_number}",
-            "token_number": appt.token_number,
-            "patient_id": appt.patient_id,
-            "patient_name": appt.patient.get_full_name(),
-            "file": appt.patient.filerecord.internal_file_number if hasattr(appt.patient, "filerecord") else "-",
-            "external_file": appt.patient.filerecord.external_file_number if (hasattr(appt.patient, "filerecord") and appt.patient.filerecord.external_file_number) else "-",
-            "status": appt.get_status_display(),
-            "status_code": appt.status,
-            "doctor": appt.doctor.get_full_name() if appt.doctor else "Unassigned",
-            "gender": appt.patient.sex or "F",
-            "age": appt.patient.get_age() if hasattr(appt.patient, 'get_age') else 40,
-            "contact": appt.patient.contact_no,
-            "reason": appt.reason_for_visit or "General Consultation",
-            "appointment_date": appt.appointment_date.strftime("%Y-%m-%d"),
-        }
+        appointments = Appointment.objects.select_related("patient__filerecord", "doctor").filter(appointment_date=date.today())
+        if doctor_id:
+            appointments = appointments.filter(doctor_id=doctor_id)
 
-    attending = [serialize_appt(a) for a in appointments.filter(status="I")]
-    attended = [serialize_appt(a) for a in appointments.filter(status="A")]
-    waiting = [serialize_appt(a) for a in appointments.filter(status="T")]
+        attending = AppointmentSerializer(appointments.filter(status="I"), many=True).data
+        attended = AppointmentSerializer(appointments.filter(status="A"), many=True).data
+        waiting = AppointmentSerializer(appointments.filter(status="T"), many=True).data
 
-    doctors_list = []
-    for d in Doctor.objects.all():
-        doctors_list.append({"id": d.id, "name": d.get_full_name()})
+        doctors_list = DoctorSerializer(Doctor.objects.all(), many=True).data
+        common_tests = LabTestSerializer(LabTest.objects.filter(is_common=True), many=True).data
 
-    common_tests = list(LabTest.objects.filter(is_common=True).values("id", "name"))
-
-    return Response({
-        "ok": True,
-        "selected_doctor_id": doctor_id,
-        "counts": {
-            "waiting": len(waiting),
-            "attending": len(attending),
-            "attended": len(attended),
-            "total_today": appointments.count(),
-        },
-        "attending": attending,
-        "attended": attended,
-        "waiting": waiting,
-        "doctors": doctors_list,
-        "common_tests": common_tests,
-    })
-
+        return Response({
+            "ok": True,
+            "attending": attending,
+            "attended": attended,
+            "waiting": waiting,
+            "counts": {
+                "waiting": len(waiting),
+                "attending": len(attending),
+                "attended": len(attended),
+                "total_today": len(attending) + len(attended) + len(waiting),
+            },
+            "doctors": doctors_list,
+            "common_tests": common_tests,
+        })
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)
 
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def save_consultation_api(request, appointment_id):
     """
-    POST API to save consultation notes, prescription medicines, and prescribed lab tests.
+    POST API to save doctor consultation and prescription.
+    Requires Strict DOCTOR JWT role check.
+    Uses multi-table atomic transactions for integrity.
     """
-    appointment = get_object_or_404(Appointment, id=appointment_id)
-    data = request.data
+    try:
+        role = _get_user_role(request)
+        if role != 'DOCTOR' and not getattr(request.user, 'is_superuser', False):
+            return Response({"ok": False, "error": "Access denied. Only doctors can save consultations."}, status=403)
 
-    consultation, _ = Consultation.objects.get_or_create(
-        appointment=appointment,
-        defaults={"patient": appointment.patient},
-    )
-    consult_form = ConsultationForm(data, instance=consultation)
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        data = request.data.copy()
 
-    prescription, _ = Prescription.objects.get_or_create(consultation=consultation)
-    prescription_form = PrescriptionForm(data, instance=prescription)
+        consult_form = ConsultationForm({
+            "chief_complaints": _safe_str(data.get("chief_complaints")),
+            "clinical_findings": _safe_str(data.get("clinical_findings")),
+            "diagnosis": _safe_str(data.get("diagnosis")),
+        })
 
-    if consult_form.is_valid() and prescription_form.is_valid():
-        consultation = consult_form.save(commit=False)
-        consultation.patient = appointment.patient
-        consultation.appointment = appointment
-        consultation.save()
+        prescription_form = PrescriptionForm({
+            "doctor": appointment.doctor_id,
+            "patient": appointment.patient_id,
+        })
 
-        prescription = prescription_form.save(commit=False)
-        prescription.consultation = consultation
-        prescription.save()
-
-        test_ids = data.get("prescribed_tests", [])
-        if test_ids:
-            prescription.prescribed_tests.set(test_ids)
-
-        medicines_data = data.get("items", [])
-        if medicines_data:
-            prescription.items.all().delete()
-            for item in medicines_data:
-                med_name = item.get("medicine") or item.get("medicine_name")
-                if not med_name:
-                    continue
-                med_obj, _ = Medicine.objects.get_or_create(medicine_name=med_name)
-                PrescriptionItem.objects.create(
-                    prescription=prescription,
-                    medicine=med_obj,
-                    dosage=item.get("dosage", ""),
-                    duration=item.get("duration", ""),
-                    instructions=item.get("instructions", ""),
+        if consult_form.is_valid() and prescription_form.is_valid():
+            with transaction.atomic():
+                consultation, _ = Consultation.objects.update_or_create(
+                    appointment=appointment,
+                    defaults=consult_form.cleaned_data
                 )
 
-        appointment.status = data.get("post_consult_status") or "A"
-        appointment.save(update_fields=["status", "updated_at"])
-        _broadcast_queue_update(appointment.doctor_id)
+                prescription, _ = Prescription.objects.update_or_create(
+                    appointment=appointment,
+                    defaults={
+                        "doctor": appointment.doctor,
+                        "patient": appointment.patient,
+                        "consultation": consultation
+                    }
+                )
 
-        return Response({
-            "ok": True,
-            "message": "Consultation and prescription saved successfully.",
-            "prescription_id": prescription.id,
-            "consultation_id": consultation.id,
-        })
-    else:
-        errors = {}
-        if not consult_form.is_valid():
-            errors["consultation"] = consult_form.errors
-        if not prescription_form.is_valid():
-            errors["prescription"] = prescription_form.errors
-        return Response({"ok": False, "errors": errors}, status=400)
+                prescribed_tests = data.get("prescribed_tests", [])
+                if isinstance(prescribed_tests, list) and prescribed_tests:
+                    valid_tests = LabTest.objects.filter(id__in=prescribed_tests)
+                    prescription.prescribed_tests.set(valid_tests)
+
+                items = data.get("items", [])
+                if isinstance(items, list) and items:
+                    prescription.items.all().delete()
+                    for item in items:
+                        med_name = _safe_str(item.get("medicine"))
+                        if not med_name:
+                            continue
+                        medicine, _ = Medicine.objects.get_or_create(name=med_name)
+                        PrescriptionItem.objects.create(
+                            prescription=prescription,
+                            medicine=medicine,
+                            dosage=_safe_str(item.get("dosage")),
+                            duration=_safe_str(item.get("duration")),
+                            instructions=_safe_str(item.get("instructions")),
+                        )
+
+                post_status = _safe_str(data.get("post_consult_status"))
+                if post_status in ["A", "I"]:
+                    appointment.status = post_status
+                    appointment.save(update_fields=["status", "updated_at"])
+
+            _broadcast_queue_update(appointment.doctor_id)
+            consult_data = ConsultationSerializer(consultation).data
+            return Response({
+                "ok": True,
+                "message": "Consultation and prescription saved successfully.",
+                "prescription_id": prescription.id,
+                "consultation_id": consultation.id,
+                "consultation": consult_data,
+            })
+        else:
+            errors = {}
+            if not consult_form.is_valid():
+                errors["consultation"] = consult_form.errors
+            if not prescription_form.is_valid():
+                errors["prescription"] = prescription_form.errors
+            return Response({"ok": False, "errors": errors}, status=400)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)

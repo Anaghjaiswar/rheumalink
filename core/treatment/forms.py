@@ -13,8 +13,6 @@ from .models import (
     RumatDiagnosis,
 )
 
-
-
 import uuid
 
 class PatientProfileForm(forms.ModelForm):
@@ -59,11 +57,11 @@ class PatientProfileForm(forms.ModelForm):
             return f"patient_{unique_suffix}@rheumalink.local"
 
 
-
 class AppointmentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["patient"].queryset = PatientProfile.objects.select_related("filerecord").all()
+        self.fields["appointment_time"].required = False
 
     class Meta:
         model = Appointment
@@ -80,6 +78,13 @@ class AppointmentForm(forms.ModelForm):
             "appointment_time": forms.TimeInput(attrs={"type": "time"}),
             "reason_for_visit": forms.Textarea(attrs={"rows": 2}),
         }
+
+    def clean_appointment_time(self):
+        t = self.cleaned_data.get("appointment_time")
+        if not t:
+            from datetime import datetime
+            return datetime.now().time()
+        return t
 
 
 class AppointmentUpdateForm(forms.ModelForm):
@@ -113,7 +118,7 @@ class PatientMedicalInfoForm(forms.ModelForm):
             "family_history",
             "known_allergies",
             "smokes",
-            "alcohololic",
+            "alcoholic",
             "comorbidities",
         ]
         widgets = {
@@ -199,4 +204,3 @@ class RumatDiagnosisForm(forms.ModelForm):
         widgets = {
             "description_t": forms.Textarea(attrs={"rows": 4}),
         }
-

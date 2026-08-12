@@ -10,57 +10,76 @@ from treatment.forms import PatientDiagnosisForm
 from treatment.models import Appointment, Consultation, RumatDiagnosis, jointspain
 from treatment.services import RheumaAnalyticsService
 
+def _get_user_role(request):
+    if hasattr(request, 'auth') and isinstance(request.auth, dict) and 'role' in request.auth:
+        return request.auth['role']
+    return getattr(request.user, 'role', None)
+
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def save_diagnosis_api(request, appointment_id):
     """
-    POST API to save Patient Diagnosis linking latest joint chart and rheumat diagnosis.
+    POST API to save Patient Diagnosis. Strict DOCTOR role required.
     """
-    appointment = get_object_or_404(Appointment, id=appointment_id)
-    consultation = Consultation.objects.filter(appointment=appointment).first()
-    if not consultation:
-        consultation = Consultation.objects.create(patient=appointment.patient, appointment=appointment)
+    try:
+        role = _get_user_role(request)
+        if role != 'DOCTOR' and not getattr(request.user, 'is_superuser', False):
+            return Response({"ok": False, "error": "Access denied. Doctor privileges required to record diagnosis."}, status=403)
 
-    existing_diag = PatientDiagnosis.objects.filter(consultation_link=consultation).first()
-    data = request.data
-    form = PatientDiagnosisForm(data, instance=existing_diag)
+        appointment = get_object_or_404(Appointment, id=appointment_id)
+        consultation = Consultation.objects.filter(appointment=appointment).first()
+        if not consultation:
+            consultation = Consultation.objects.create(patient=appointment.patient, appointment=appointment)
 
-    if form.is_valid():
-        joint_record = (
-            jointspain.objects.filter(patient_link=appointment.patient)
-            .order_by("-date_of_assessment")
-            .first()
-        )
+        existing_diag = PatientDiagnosis.objects.filter(consultation_link=consultation).first()
+        data = request.data or {}
+        form = PatientDiagnosisForm(data, instance=existing_diag)
 
-        rumat_diagnosis = (
-            RumatDiagnosis.objects.filter(patient_link=appointment.patient)
-            .order_by("-id")
-            .first()
-        )
+        if form.is_valid():
+            joint_record = (
+                jointspain.objects.filter(patient_link=appointment.patient)
+                .order_by("-date_of_assessment")
+                .first()
+            )
 
-        diagnosis = form.save(commit=False)
-        diagnosis.patient_link = appointment.patient
-        diagnosis.consultation_link = consultation
-        diagnosis.joints_record = joint_record
-        diagnosis.rumat_diagnosis = rumat_diagnosis
-        diagnosis.save()
+            rumat_diagnosis = (
+                RumatDiagnosis.objects.filter(patient_link=appointment.patient)
+                .order_by("-id")
+                .first()
+            )
 
-        return Response({
-            "ok": True,
-            "message": "Patient diagnosis saved successfully.",
-            "has_joint_chart": bool(joint_record),
-            "has_rumat_checklist": bool(rumat_diagnosis),
-            "diagnosis_id": diagnosis.id,
-        })
-    else:
-        return Response({"ok": False, "errors": form.errors}, status=400)
+            diagnosis = form.save(commit=False)
+            diagnosis.patient_link = appointment.patient
+            diagnosis.consultation_link = consultation
+            diagnosis.joints_record = joint_record
+            diagnosis.rumat_diagnosis = rumat_diagnosis
+            diagnosis.save()
+
+            return Response({
+                "ok": True,
+                "message": "Patient diagnosis saved successfully.",
+                "has_joint_chart": bool(joint_record),
+                "has_rumat_checklist": bool(rumat_diagnosis),
+                "diagnosis_id": diagnosis.id,
+            })
+        else:
+            return Response({"ok": False, "errors": form.errors}, status=400)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)
 
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication, SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def das28_score_api(request, appointment_id):
-    """GET API to calculate DAS28 score for an appointment."""
-    data = RheumaAnalyticsService.calculate_das28_score(appointment_id)
-    return Response(data)
+    """GET API to calculate DAS28 score for an appointment. Strict DOCTOR role required."""
+    try:
+        role = _get_user_role(request)
+        if role != 'DOCTOR' and not getattr(request.user, 'is_superuser', False):
+            return Response({"ok": False, "error": "Access denied. Doctor privileges required for analytics."}, status=403)
+
+        data = RheumaAnalyticsService.calculate_das28_score(appointment_id)
+        return Response(data)
+    except Exception as e:
+        return Response({"ok": False, "error": str(e)}, status=500)

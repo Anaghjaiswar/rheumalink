@@ -761,7 +761,7 @@ def get_patient_medical_info(request, patient_id):
 		"family_history": medical_info.family_history or "",
 		"known_allergies": medical_info.known_allergies or "",
 		"smokes": medical_info.smokes,
-		"alcoholic": medical_info.alcohololic,
+		"alcoholic": medical_info.alcoholic,
 		"comorbidities": list(medical_info.comorbidities.values_list("id", flat=True)),
 		"comorbidity_names": list(medical_info.comorbidities.values_list("name", flat=True)),
 		"created_at": created_at_str,

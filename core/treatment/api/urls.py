@@ -1,9 +1,9 @@
 from django.urls import path
-from .compounder_api import get_compounder_dashboard_api, register_patient_api, create_appointment_api
-from .doctor_api import get_doctor_dashboard_api, save_consultation_api
+from .compounder_api import get_compounder_dashboard_api, register_patient_api, create_appointment_api, update_appointment_status_api
+from .doctor_api import get_doctor_dashboard_api, save_consultation_api, get_doctors_list_api
 from .joint_chart_api import get_joint_chart_api, save_joint_chart_api
 from .rumat_api import get_rumat_diagnosis_api, save_rumat_diagnosis_api
-from .vitals_api import get_appointment_vitals_api, capture_vitals_api
+from .vitals_api import get_appointment_vitals_api, capture_vitals_api, get_patient_appointments_api
 from .medical_info_api import get_patient_medical_info_api, save_patient_medical_info_api
 from .diagnosis_api import save_diagnosis_api, das28_score_api
 from .autosuggest_api import medicine_autosuggest_api, labtest_autosuggest_api
@@ -11,13 +11,15 @@ from .prescription_api import download_prescription_pdf_api, send_prescription_w
 from .clinic_api import get_clinic_settings_api
 
 urlpatterns = [
-    # Clinic Settings API (Public & Cached)
+    # Clinic Settings & Doctors List API (Staff & Public)
     path("v1/clinic/settings/", get_clinic_settings_api, name="api-v1-clinic-settings"),
+    path("v1/doctors/", get_doctors_list_api, name="api-v1-doctors-list"),
 
     # Compounder Desk API Endpoints
     path("v1/compounder/dashboard/", get_compounder_dashboard_api, name="api-v1-compounder-dashboard"),
     path("v1/compounder/patient/register/", register_patient_api, name="api-v1-compounder-register"),
     path("v1/compounder/appointment/create/", create_appointment_api, name="api-v1-compounder-create-appointment"),
+    path("v1/compounder/appointment/<int:appointment_id>/update/", update_appointment_status_api, name="api-v1-compounder-update-appointment"),
 
     # Doctor Desk API Endpoints
     path("v1/doctor/dashboard/", get_doctor_dashboard_api, name="api-v1-doctor-dashboard"),
@@ -35,6 +37,7 @@ urlpatterns = [
     # Vitals & Medical Info API Endpoints
     path("v1/vitals/<int:appointment_id>/", get_appointment_vitals_api, name="api-v1-vitals-get"),
     path("v1/vitals/<int:appointment_id>/save/", capture_vitals_api, name="api-v1-vitals-save"),
+    path("v1/patient/<int:patient_id>/appointments/", get_patient_appointments_api, name="api-v1-patient-appointments"),
     path("v1/medical-info/<int:patient_id>/", get_patient_medical_info_api, name="api-v1-medical-info-get"),
     path("v1/medical-info/<int:patient_id>/save/", save_patient_medical_info_api, name="api-v1-medical-info-save"),
 
