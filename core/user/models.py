@@ -91,6 +91,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     def is_compounder(self):
         return self.role == self.Role.COMPOUNDER
 
+    def get_full_name(self):
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name if full_name else self.email
+
+    def get_short_name(self):
+        return self.first_name if self.first_name else self.email
+
     def save(self, *args, **kwargs):
         if self.password:
             try:
@@ -99,4 +106,5 @@ class User(AbstractBaseUser, PermissionsMixin):
             except ValueError:
                 self.set_password(self.password)
         super().save(*args, **kwargs)
+
 

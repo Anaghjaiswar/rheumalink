@@ -39,11 +39,21 @@ class PrescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Prescription
-        fields = ["id", "consultation", "prescription_pdf", "items", "prescribed_tests", "created_at"]
+        fields = [
+            "id",
+            "consultation",
+            "prescription_pdf",
+            "items",
+            "prescribed_tests",
+            "advice_notes",
+            "lab_investigations",
+            "next_followup_date",
+        ]
 
 
 class ConsultationSerializer(serializers.ModelSerializer):
     prescription = PrescriptionSerializer(read_only=True)
+    diagnosis = serializers.CharField(source="provisional_diagnosis", read_only=True)
 
     class Meta:
         model = Consultation
@@ -53,6 +63,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
             "appointment",
             "chief_complaints",
             "clinical_findings",
+            "provisional_diagnosis",
             "diagnosis",
             "prescription",
             "created_at",

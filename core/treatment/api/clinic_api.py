@@ -2,7 +2,7 @@ from django.core.cache import cache
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication 
 from rest_framework.authentication import SessionAuthentication
 from clinic.models import ClinicSettings
 from treatment.serializers import ClinicSettingsSerializer

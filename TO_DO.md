@@ -42,3 +42,62 @@ can get structured data from that lab report and save it to database.
   asks the patient 8 quick questions (e.g., "Can you dress yourself?", "Can you climb stairs?") and clicks the   
   corresponding difficulty buttons (0 to 3). The system calculates the HAQ score automatically in real-time.     
   • Cost: $0 (simple client-side math).                         
+
+
+
+
+
+
+
+
+
+  ### Summary of Missing APIs in Frontend (api.ts)                                           
+                                                                                             
+   Feature / Action in… │ Backend Endpoint     │ Status in Frontend … │ Impact
+  ──────────────────────┼──────────────────────┼──────────────────────┼──────────────────────
+   1. Medicine Auto-    │ GET                  │ ❌ Missing           │ Doctor has to type
+   Suggest              │ /api/v1/autosuggest/ │                      │ medicine names
+                        │ medicine/?q=         │                      │ manually without
+                        │                      │                      │ autocomplete/strengt
+                        │                      │                      │ h hints.
+   2. Lab Test Auto-    │ GET                  │ ❌ Missing           │ Only predefined
+   Suggest              │ /api/v1/autosuggest/ │                      │ common tests show;
+                        │ labtest/?q=          │                      │ cannot search & add
+                        │                      │                      │ custom lab tests
+                         │                       │                   │ badges.
+   3. Real-Time DAS28   │ GET                  │ ❌ Missing           │ Frontend hardcodes
+   Score Calculator     │ /api/v1/das28/<appoi │                      │ "4.2" instead of
+                        │ ntment_id>/          │                      │ calculating based on
+                        │                      │                      │ joints + lab
+   4. Diagnosis Status & │ GET /api/diagnosis-   │ ❌ Missing        │ Cannot check if Joint
+   Completion Badges     │ status/<appointment_i │                   │ Chart or Rheumat
+                         │ d>/                   │                   │ Checklist are
+                         │                       │                   │ completed (✅
+                         │                        │                 │ Filled).
+   5. MedASR Voice       │ POST /api/proxy-       │ ❌ Missing      │ Medical voice
+   Dictation: Spelling & │ correct-transcription/ │                 │ dictation does not
+   Polish                │                        │                 │ polish transcriptions
+   Polish                │ transcription/        │                   │ polish transcriptions
+                         │                       │                   │ through AI service.
+   6. MedASR Voice       │ POST /api/proxy-      │ ❌ Missing        │ Cannot auto-extract
+   Dictation: Clinical   │ structure-clinical-   │                   │ complaints, findings,
+   Structuring           │ note/                 │                   │ diagnosis, medicines
+                         │                       │                   │ & tests from voice
+                         │                       │                   │ note into form
+                          │ id>/pdf/               │               │ backend Gotenberg
+                          │                        │               │ engine is missing.
+   8. Send Prescription   │ POST                   │ ❌ Missing    │ Direct WhatsApp
+   via WhatsApp           │ /api/v1/prescription/< │               │ delivery of
+                          │ id>/send/              │               │ prescription PDF to
+                          │                        │               │ patient is not
+                          │                        │               │ callable.
+   9. Doctor              │ GET                    │ ❌ Missing    │ Notification popover in
+   Notifications (Bell &  │ /notifications/api/lis │               │ top navigation cannot
+   Unread Badges)         │ t/?role=DOCTOR         │               │ fetch doctor alerts.
+   10. Mark Notification  │ POST                   │ ❌ Missing    │ Doctor cannot
+   As Read                │ /notifications/api/<id │               │ dismiss/mark
+                          │ >/read/                │               │ notifications read.
+   11. Live Queue Polling │ GET                    │ ❌ Missing    │ Queue count cards
+   / WebSocket Stats      │ /api/queue/?doctor=<id │               │ (Waiting, Attending,
+                          │ >                      │               │ Attended) do not update
+                          │                        │               │ in real-time.

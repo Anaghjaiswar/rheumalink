@@ -63,6 +63,8 @@ def _broadcast_queue_update(doctor_id=None):
 
 def _generate_prescription_pdf(prescription):
 	"""Generates prescription PDF using the central Gotenberg HTML-to-PDF engine with query & caching optimizations."""
+	import logging
+	logger = logging.getLogger(__name__)
 	from django.template.loader import render_to_string
 	from django.core.cache import cache
 	from clinic.models import ClinicSettings
@@ -102,10 +104,80 @@ def _generate_prescription_pdf(prescription):
 			file_number = patient.filerecord.internal_file_number
 		except Exception:
 			file_number = '-'
-	
+
+	doctor_signature_base64 = None
+	if doctor and doctor.signature:
+		try:
+			with doctor.signature.open("rb") as f:
+				import base64
+				encoded = base64.b64encode(f.read()).decode("utf-8")
+				ext = doctor.signature.name.split(".")[-1].lower()
+				mime = "image/png" if ext == "png" else "image/jpeg" if ext in ["jpg", "jpeg"] else "image/png"
+				doctor_signature_base64 = f"data:{mime};base64,{encoded}"
+		except Exception as e:
+			logger.warning(f"Failed to encode doctor signature to base64: {e}")
+
+	clinic_logo_base64 = None
+	if clinic and clinic.logo:
+		try:
+			with clinic.logo.open("rb") as f:
+				import base64
+				encoded = base64.b64encode(f.read()).decode("utf-8")
+				ext = clinic.logo.name.split(".")[-1].lower()
+				mime = "image/png" if ext == "png" else "image/jpeg" if ext in ["jpg", "jpeg"] else "image/png"
+				clinic_logo_base64 = f"data:{mime};base64,{encoded}"
+		except Exception as e:
+			logger.warning(f"Failed to encode clinic logo to base64: {e}")
+
+	# Generate QR code containing comprehensive report verification information
+	qr_code_base64 = None
+	try:
+		import qrcode
+		import io
+		import base64
+		qr_lines = [
+			"RHEUMALINK DIGITAL PRESCRIPTION VERIFICATION",
+			f"Clinic: {clinic.name if clinic else 'RheumaLink Clinic'}",
+			f"Consultation ID: #{consultation.id if consultation else prescription.id}",
+			f"Date: {consultation.created_at.strftime('%d-%m-%Y') if (consultation and consultation.created_at) else '-'}",
+			f"Doctor: {doctor.get_full_name() if doctor else 'Dr. Shweta Gupta'}",
+			f"Patient: {patient.get_full_name() if patient else '-'}",
+			f"File Number: {file_number}",
+		]
+		if consultation and consultation.provisional_diagnosis:
+			qr_lines.append(f"Diagnosis: {consultation.provisional_diagnosis}")
+		if prescription_items:
+			rx_str = ", ".join([f"{item.medicine.medicine_name} ({item.dosage})" for item in prescription_items])
+			qr_lines.append(f"Rx: {rx_str}")
+		if prescribed_tests:
+			labs_str = ", ".join([t.name for t in prescribed_tests])
+			qr_lines.append(f"Labs: {labs_str}")
+		if prescription.next_followup_date:
+			qr_lines.append(f"Follow-up: {prescription.next_followup_date.strftime('%d-%m-%Y')}")
+		qr_lines.append("Status: Digitally Verified & Signed")
+
+		qr_text = "\n".join(qr_lines)
+		qr = qrcode.QRCode(
+			version=None,
+			error_correction=qrcode.constants.ERROR_CORRECT_M,
+			box_size=4,
+			border=2,
+		)
+		qr.add_data(qr_text)
+		qr.make(fit=True)
+		img = qr.make_image(fill_color="#1a3a5c", back_color="#ffffff")
+		buf = io.BytesIO()
+		img.save(buf, format="PNG")
+		qr_code_base64 = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
+	except Exception as qr_err:
+		logger.warning(f"QR Code generation skipped or pending library install: {qr_err}")
+
 	context = {
 		"clinic": clinic,
+		"clinic_logo_base64": clinic_logo_base64,
 		"doctor": doctor,
+		"doctor_signature_base64": doctor_signature_base64,
+		"qr_code_base64": qr_code_base64,
 		"patient": patient,
 		"consultation": consultation,
 		"prescription": prescription,

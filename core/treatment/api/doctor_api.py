@@ -105,77 +105,74 @@ def save_consultation_api(request, appointment_id):
         if role != 'DOCTOR' and not getattr(request.user, 'is_superuser', False):
             return Response({"ok": False, "error": "Access denied. Only doctors can save consultations."}, status=403)
 
-        appointment = get_object_or_404(Appointment, id=appointment_id)
+        appointment = get_object_or_404(Appointment.objects.select_related("patient", "doctor"), id=appointment_id)
         data = request.data.copy()
 
-        consult_form = ConsultationForm({
+        consult_defaults = {
+            "patient": appointment.patient,
             "chief_complaints": _safe_str(data.get("chief_complaints")),
             "clinical_findings": _safe_str(data.get("clinical_findings")),
-            "diagnosis": _safe_str(data.get("diagnosis")),
+            "provisional_diagnosis": _safe_str(data.get("diagnosis") or data.get("provisional_diagnosis")),
+        }
+
+        prescription_defaults = {
+            "advice_notes": _safe_str(data.get("general_advice") or data.get("advice_notes")),
+            "lab_investigations": _safe_str(data.get("other_lab_notes") or data.get("lab_investigations")),
+            "next_followup_date": data.get("next_followup_date") or None,
+        }
+
+        with transaction.atomic():
+            consultation, _ = Consultation.objects.update_or_create(
+                appointment=appointment,
+                defaults=consult_defaults
+            )
+
+            prescription, _ = Prescription.objects.update_or_create(
+                consultation=consultation,
+                defaults=prescription_defaults
+            )
+
+            prescribed_tests = data.get("prescribed_tests", [])
+            if isinstance(prescribed_tests, list) and prescribed_tests:
+                valid_tests = LabTest.objects.filter(id__in=prescribed_tests)
+                prescription.prescribed_tests.set(valid_tests)
+
+            items = data.get("items", [])
+            if isinstance(items, list) and items:
+                prescription.items.all().delete()
+                for item in items:
+                    med_name = _safe_str(item.get("medicine"))
+                    if not med_name:
+                        continue
+                    medicine, _ = Medicine.objects.get_or_create(medicine_name=med_name)
+                    PrescriptionItem.objects.create(
+                        prescription=prescription,
+                        medicine=medicine,
+                        dosage=_safe_str(item.get("dosage")),
+                        duration=_safe_str(item.get("duration")),
+                        instructions=_safe_str(item.get("instructions")),
+                    )
+
+            post_status = _safe_str(data.get("post_consult_status"))
+            if post_status in ["A", "I"]:
+                appointment.status = post_status
+                appointment.save(update_fields=["status", "updated_at"])
+
+        # Trigger Celery background PDF generation task (with on-demand fallback)
+        try:
+            from treatment.tasks import generate_prescription_pdf_task
+            generate_prescription_pdf_task.delay(prescription.id)
+        except Exception:
+            pass
+
+        _broadcast_queue_update(appointment.doctor_id)
+        consult_data = ConsultationSerializer(consultation).data
+        return Response({
+            "ok": True,
+            "message": "Consultation and prescription saved successfully.",
+            "prescription_id": prescription.id,
+            "consultation_id": consultation.id,
+            "consultation": consult_data,
         })
-
-        prescription_form = PrescriptionForm({
-            "doctor": appointment.doctor_id,
-            "patient": appointment.patient_id,
-        })
-
-        if consult_form.is_valid() and prescription_form.is_valid():
-            with transaction.atomic():
-                consultation, _ = Consultation.objects.update_or_create(
-                    appointment=appointment,
-                    defaults=consult_form.cleaned_data
-                )
-
-                prescription, _ = Prescription.objects.update_or_create(
-                    appointment=appointment,
-                    defaults={
-                        "doctor": appointment.doctor,
-                        "patient": appointment.patient,
-                        "consultation": consultation
-                    }
-                )
-
-                prescribed_tests = data.get("prescribed_tests", [])
-                if isinstance(prescribed_tests, list) and prescribed_tests:
-                    valid_tests = LabTest.objects.filter(id__in=prescribed_tests)
-                    prescription.prescribed_tests.set(valid_tests)
-
-                items = data.get("items", [])
-                if isinstance(items, list) and items:
-                    prescription.items.all().delete()
-                    for item in items:
-                        med_name = _safe_str(item.get("medicine"))
-                        if not med_name:
-                            continue
-                        medicine, _ = Medicine.objects.get_or_create(name=med_name)
-                        PrescriptionItem.objects.create(
-                            prescription=prescription,
-                            medicine=medicine,
-                            dosage=_safe_str(item.get("dosage")),
-                            duration=_safe_str(item.get("duration")),
-                            instructions=_safe_str(item.get("instructions")),
-                        )
-
-                post_status = _safe_str(data.get("post_consult_status"))
-                if post_status in ["A", "I"]:
-                    appointment.status = post_status
-                    appointment.save(update_fields=["status", "updated_at"])
-
-            _broadcast_queue_update(appointment.doctor_id)
-            consult_data = ConsultationSerializer(consultation).data
-            return Response({
-                "ok": True,
-                "message": "Consultation and prescription saved successfully.",
-                "prescription_id": prescription.id,
-                "consultation_id": consultation.id,
-                "consultation": consult_data,
-            })
-        else:
-            errors = {}
-            if not consult_form.is_valid():
-                errors["consultation"] = consult_form.errors
-            if not prescription_form.is_valid():
-                errors["prescription"] = prescription_form.errors
-            return Response({"ok": False, "errors": errors}, status=400)
     except Exception as e:
         return Response({"ok": False, "error": str(e)}, status=500)
